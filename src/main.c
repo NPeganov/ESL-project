@@ -13,7 +13,8 @@
 
 #include "pca10059.h"
 #include "nrf_delay.h"
-#include "lib/gpio.h"
+#include "lib/leds.h"
+#include "lib/btn.h"
 
 /**
  * @brief Function for application main entry.
@@ -23,8 +24,8 @@ int main(void)
     const char* DevID = "6609";
     uint16_t pause = 500;
 
-    gpio_leds_init();       // Configure GPIO for leds control
-    gpio_buttons_init();    // And for the buttons
+    leds_init();       // Configure GPIO for leds control
+    btn_init();    // And for the buttons
  
     while (true)
     {
@@ -41,16 +42,16 @@ int main(void)
                 // Blink the given number of times
                 for(uint8_t j = 0; j < blink_times; j++)
                 {
-                    while(!gpio_button_state()); // Simply waiting untill the button is pressed
+                    while(!btn_pressed()); // Simply waiting untill the button is pressed
 
                     // The index i here works as an address of a particular LED in the m_led_list=LEDS_LIST
                     // array to properly form its' PIN address in the global GPIO address space
-                    gpio_led_on(i); 
+                    led_on(i); 
                     nrf_delay_ms(pause);
 
-                    while(!gpio_button_state()); // and keep it ON if the buttoin was released previously                  
+                    while(!btn_pressed()); // and keep it ON if the buttoin was released previously                  
 
-                    gpio_led_off(i);
+                    led_off(i);
                     nrf_delay_ms(pause);                    
                 }
             }
