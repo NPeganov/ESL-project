@@ -11,8 +11,9 @@
 
 #include <ctype.h>
 
+#include "pca10059.h"
 #include "nrf_delay.h"
-#include "boards.h"
+#include "lib/gpio.h"
 
 /**
  * @brief Function for application main entry.
@@ -22,8 +23,8 @@ int main(void)
     const char* DevID = "6609";
     uint16_t pause = 500;
 
-    /* Configure board. */
-    bsp_board_init(BSP_INIT_LEDS);
+    /* Configure leds. */
+    gpio_leds_init();
  
     while (true)
     {
@@ -37,21 +38,21 @@ int main(void)
                 uint8_t blink_times = *(DevID + i) - 48;
                 uint8_t led_num = 0;
 
-                // It might be obvious, but who knows what a real number are hidden under BSP_BOARD_LED_X macro
+                // It might be obvious, but who knows what a real number are hidden under BSP_LED_X macro
                 switch(i)
                 {
-                    case 0:led_num = BSP_BOARD_LED_0;break;
-                    case 1:led_num = BSP_BOARD_LED_1;break;
-                    case 2:led_num = BSP_BOARD_LED_2;break;
-                    case 3:led_num = BSP_BOARD_LED_3;break;
+                    case 0:led_num = 0;break;
+                    case 1:led_num = 1;break;
+                    case 2:led_num = 2;break;
+                    case 3:led_num = 3;break;
                 }
 
                 // Blink the given number of times
                 for(uint8_t j = 0; j < blink_times; j++)
                 {
-                    bsp_board_led_on(led_num);
+                    gpio_led_on(led_num);
                     nrf_delay_ms(pause);
-                    bsp_board_led_off(led_num);
+                    gpio_led_off(led_num);
                     nrf_delay_ms(pause);                    
                 }
             }
