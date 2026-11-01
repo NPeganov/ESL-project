@@ -11,7 +11,6 @@
 
 #include <ctype.h>
 
-#include "pca10059.h"
 #include "nrf_delay.h"
 #include "lib/leds.h"
 #include "lib/btn.h"
