@@ -13,9 +13,12 @@ $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
 
 # Source files common to all targets
 SRC_FILES += \
+  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_systick.c \
   $(PROJ_DIR)/main.c \
   $(PROJ_DIR)/lib/leds.c \
   $(PROJ_DIR)/lib/btn.c \
+  $(PROJ_DIR)/lib/soft_pwm.c \
+  $(PROJ_DIR)/lib/fade.c \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52840.S \
   $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52840.c \
 
@@ -25,6 +28,7 @@ INC_FOLDERS += \
   $(PROJ_DIR)/lib \
   $(SDK_ROOT)/components \
   $(SDK_ROOT)/modules/nrfx/mdk \
+  $(SDK_ROOT)/modules/nrfx/drivers/include/ \
   $(SDK_ROOT)/components/softdevice/mbr/headers \
   $(SDK_ROOT)/components/libraries/strerror \
   $(SDK_ROOT)/components/toolchain/cmsis/include \

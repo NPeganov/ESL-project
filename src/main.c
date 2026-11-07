@@ -10,48 +10,112 @@
  */
 
 #include <ctype.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 #include "nrf_delay.h"
+#include "nrfx_systick.h"
+
 #include "lib/leds.h"
 #include "lib/btn.h"
+#include "lib/soft_pwm.h"
+#include "lib/fade.h"
 
 /**
  * @brief Function for application main entry.
  */
+
+#define PWM_PERIOD_US       1000U
+#define FADE_DURATION_MS    800U
+
+static uint32_t pwm_led_idx = 0U;
+
+static void pwm_led_output(bool state, void *context)
+{
+    uint32_t led_idx = *(uint32_t *)context;
+
+    if (state) led_on(led_idx);
+    else led_off(led_idx);
+}
+
 int main(void)
 {
-    const char* DevID = "6609";
-    uint16_t pause = 500;
+    const char dev_id[] = "6609";
 
-    leds_init();       // Configure GPIO for leds control
-    btn_init();    // And for the buttons
- 
+    soft_pwm_t pwm;
+    fade_t fade;
+
+    leds_init();
+    leds_off();
+    btn_init();
+
+    nrfx_systick_init();
+
+    if (!soft_pwm_init(
+            &pwm,
+            PWM_PERIOD_US,
+            pwm_led_output,
+            &pwm_led_idx)) while (true); // incorrect initialization
+    
+    fade_init(&fade, &pwm);
+
     while (true)
     {
         for (uint8_t i = 0; i < LEDS_NUMBER; i++)
-        {   
-            // This loop iterates on each character within device ID.
-            // On every iteration a character is checed whether it is a digit or not.
-            // In the case it is it is being conveted into an integer = number of times to blink.
-            
-            if((bool)isdigit((uint8_t)*(DevID + i)))
+        {
+            if (!isdigit((unsigned char)dev_id[i])) continue;
+
+            uint8_t blink_remaining = (uint8_t)(dev_id[i] - '0');
+            if (blink_remaining == 0) continue;
+
+            pwm_led_idx = i;
+
+            for (uint8_t j = 0; j < blink_remaining; j++)
             {
-                uint8_t blink_times = *(DevID + i) - 48;
+                bool fade_in = true;
+                bool fade_started = false;
 
-                // Blink the given number of times
-                for(uint8_t j = 0; j < blink_times; j++)
+                while (true)
                 {
-                    while(!btn_pressed()); // Simply waiting untill the button is pressed
+                    soft_pwm_process(&pwm);
 
-                    // The index i here works as an address of a particular LED in the m_led_list=LEDS_LIST
-                    // array to properly form its' PIN address in the global GPIO address space
-                    led_on(i); 
-                    nrf_delay_ms(pause);
+                    // Pause the fade while the button is released.
+                    if (!btn_pressed())
+                    {
+                        if (fade_is_active(&fade)) fade_stop(&fade);
 
-                    while(!btn_pressed()); // and keep it ON if the buttoin was released previously                  
+                        continue;
+                    }
 
-                    led_off(i);
-                    nrf_delay_ms(pause);                    
+                    if (!fade_started)
+                    {
+                        fade_start(&fade, 0, FADE_PERCENT_MAX, FADE_DURATION_MS);
+                        fade_started = true;
+                    }
+                    else if (fade_is_paused(&fade))
+                    {
+                        fade_resume(&fade);
+                    }
+
+                    fade_process(&fade);
+
+                    if (!fade_is_active(&fade) && !fade_is_paused(&fade))
+                    {
+                        if (fade_in)
+                        {
+                            fade_in = false;
+
+                            fade_start(
+                                &fade,
+                                FADE_PERCENT_MAX,
+                                0,
+                                FADE_DURATION_MS);
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
                 }
             }
         }
