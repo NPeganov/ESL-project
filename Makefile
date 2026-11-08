@@ -15,17 +15,19 @@ $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
 SRC_FILES += \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_systick.c \
   $(PROJ_DIR)/main.c \
-  $(PROJ_DIR)/lib/leds.c \
-  $(PROJ_DIR)/lib/btn.c \
-  $(PROJ_DIR)/lib/soft_pwm.c \
-  $(PROJ_DIR)/lib/fade.c \
+  $(PROJ_DIR)/leds/leds.c \
+  $(PROJ_DIR)/leds/soft_pwm.c \
+  $(PROJ_DIR)/leds/fade.c \
+  $(PROJ_DIR)/leds/led_controller.c \
+  $(PROJ_DIR)/btn/btn.c \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52840.S \
   $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52840.c \
 
 # Include folders common to all targets
 INC_FOLDERS += \
   $(PROJ_DIR) \
-  $(PROJ_DIR)/lib \
+  $(PROJ_DIR)/btn \
+  $(PROJ_DIR)/leds \
   $(SDK_ROOT)/components \
   $(SDK_ROOT)/modules/nrfx/mdk \
   $(SDK_ROOT)/modules/nrfx/drivers/include/ \
@@ -66,6 +68,7 @@ CFLAGS += -fno-builtin -fshort-enums
 
 # C++ flags common to all targets
 CXXFLAGS += $(OPT)
+
 # Assembler flags common to all targets
 ASMFLAGS += -g3
 ASMFLAGS += -mcpu=cortex-m4
