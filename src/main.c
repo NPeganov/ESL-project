@@ -32,12 +32,13 @@ int main(void)
     const char dev_id[] = "6609";
 
     led_controller_t controller;
+    bool button_pressed = false;
 
     leds_init();
     leds_off();
-    btn_init();
 
     nrfx_systick_init();
+    btn_init();
 
     if (!led_controller_init(
             &controller,
@@ -55,7 +56,17 @@ int main(void)
             if (blink_remaining == 0) continue;
 
             // Wait until the button is pressed.
-            while (!btn_pressed()) led_controller_process(&controller);
+            while (!button_pressed)
+            {
+                btn_event_t event = btn_event_take();
+
+                if (event == BTN_EVENT_PRESS)
+                    button_pressed = true;
+                else if (event == BTN_EVENT_RELEASE)
+                    button_pressed = false;
+
+                led_controller_process(&controller);
+            }
 
             led_controller_start(
                 &controller,
@@ -64,17 +75,24 @@ int main(void)
 
             while (led_controller_is_active(&controller))
             {
-                if (!btn_pressed())
-                    led_controller_pause(&controller);
-                else
-                    led_controller_resume(&controller);
+                btn_event_t event;
+
+                while ((event = btn_event_take()) != BTN_EVENT_NONE)
+                {
+                    if (event == BTN_EVENT_PRESS)
+                    {
+                        button_pressed = true;
+                        led_controller_resume(&controller);
+                    }
+                    else if (event == BTN_EVENT_RELEASE)
+                    {
+                        button_pressed = false;
+                        led_controller_pause(&controller);
+                    }
+                }
 
                 led_controller_process(&controller);
             }
         }
     }
 }
-
-/**
- *@}
- **/
