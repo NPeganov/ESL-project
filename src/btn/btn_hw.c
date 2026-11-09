@@ -5,6 +5,7 @@
 #include "app_timer.h"
 #include "app_util_platform.h"
 #include "nrf_gpio.h"
+#include "nrfx_clock.h"
 #include "nrfx_gpiote.h"
 
 #include "btn_hw.h"
@@ -32,6 +33,13 @@ static volatile bool m_debounce_candidate_state;
 static volatile bool m_debounce_active;
 
 /**
+ * @brief Handles clock events.
+ *
+ * @param[in] event Clock event.
+ */
+static void clock_event_handler(nrfx_clock_evt_type_t event);
+
+/**
  * @brief Handles GPIO edge events.
  *
  * A GPIO edge does not immediately mean that the button state
@@ -57,24 +65,25 @@ static void gpiote_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t ac
  */
 static void debounce_timer_handler(void *p_context);
 
-/**
- * @brief Initializes button hardware handling.
- *
- * Configures GPIOTE for button edge detection, initializes the
- * debounce timer and reads the initial physical button state.
- *
- * The initial state is considered confirmed immediately, so a
- * button that is already pressed during initialization does not
- * generate a press event.
- *
- * @param[in] callback Callback for confirmed button state changes.
- */
 void btn_hw_init(btn_hw_callback_t callback)
 {
     nrfx_gpiote_in_config_t config = NRFX_GPIOTE_CONFIG_IN_SENSE_TOGGLE(false);
 
     m_callback = callback;
 
+    // Initialize and start LFCLK required by RTC1/app_timer.
+    APP_ERROR_CHECK(nrfx_clock_init(clock_event_handler));
+
+    nrfx_clock_enable();
+    nrfx_clock_lfclk_start();
+
+    while (!nrfx_clock_lfclk_is_running())
+    {}
+
+    // Initialize the application timer subsystem.
+    APP_ERROR_CHECK(app_timer_init());
+
+    // Create the debounce timer.
     APP_ERROR_CHECK(app_timer_create(
         &m_debounce_timer,
         APP_TIMER_MODE_SINGLE_SHOT,
@@ -89,10 +98,13 @@ void btn_hw_init(btn_hw_callback_t callback)
         m_btn_list[0],
         &config,
         gpiote_event_handler));
+}
 
+void btn_hw_start(void)
+{
     CRITICAL_REGION_ENTER();
 
-    // Enable GPIO edge events before starting to monitor the button.
+    // Enable GPIO edge events before reading the initial state.
     nrfx_gpiote_in_event_enable(m_btn_list[0], true);
 
     // Establish the initial confirmed state of the button.
@@ -104,6 +116,11 @@ void btn_hw_init(btn_hw_callback_t callback)
     m_debounce_active = false;
 
     CRITICAL_REGION_EXIT();
+}
+
+static void clock_event_handler(nrfx_clock_evt_type_t event)
+{
+    (void)event;
 }
 
 static void gpiote_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
@@ -139,8 +156,7 @@ static void debounce_timer_handler(void *p_context)
         (nrf_gpio_pin_read(m_btn_list[0]) == BUTTONS_ACTIVE_STATE);
 
     // The input changed during the debounce interval.
-    // The new state is now the candidate state, so start
-    // another complete debounce interval.
+    // Start another complete debounce interval.
     if (pin_state != m_debounce_candidate_state)
     {
         m_debounce_candidate_state = pin_state;
@@ -154,7 +170,6 @@ static void debounce_timer_handler(void *p_context)
     }
 
     // The input remained unchanged for the complete interval.
-    // The debounce procedure is therefore finished.
     m_debounce_active = false;
 
     // Nothing changed from the last confirmed state.

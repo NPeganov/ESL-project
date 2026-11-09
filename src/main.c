@@ -12,7 +12,6 @@
 #include <stdint.h>
 
 #include "app_error.h"
-#include "nrfx_clock.h"
 #include "nrfx_systick.h"
 
 #include "btn/btn.h"
@@ -22,30 +21,6 @@
 #define PWM_PERIOD_US       1000
 #define FADE_DURATION_MS    800
 #define CYCLE_PAUSE_MS      500
-
-/**
- * @brief Handles clock events.
- *
- * @param[in] event Clock event.
- */
-static void clock_event_handler(nrfx_clock_evt_type_t event)
-{
-    (void)event;
-}
-
-/**
- * @brief Initializes the low-frequency clock.
- */
-static void clock_init(void)
-{
-    APP_ERROR_CHECK(nrfx_clock_init(clock_event_handler));
-
-    nrfx_clock_enable();
-    nrfx_clock_lfclk_start();
-
-    while (!nrfx_clock_lfclk_is_running())
-    {}
-}
 
 /**
  * @brief Returns the number of blinks configured for an LED.
@@ -104,7 +79,6 @@ int main(void)
     leds_off();
 
     nrfx_systick_init();
-    clock_init();
 
     btn_init();
 

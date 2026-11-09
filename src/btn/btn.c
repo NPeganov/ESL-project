@@ -57,14 +57,14 @@ static void double_press_timer_handler(void *p_context);
 
 void btn_init(void)
 {
-    APP_ERROR_CHECK(app_timer_init());
+    btn_hw_init(button_state_changed);
 
     APP_ERROR_CHECK(app_timer_create(
         &m_double_press_timer,
         APP_TIMER_MODE_SINGLE_SHOT,
         double_press_timer_handler));
 
-    btn_hw_init(button_state_changed);
+    btn_hw_start();
 }
 
 btn_event_t btn_event_take(void)
