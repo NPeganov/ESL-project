@@ -10,26 +10,34 @@
 #include "btn_hw.h"
 #include "pca10059.h"
 
-#ifndef BTN_DEBOUNCE_TIME_MS
 #define BTN_DEBOUNCE_TIME_MS 10
-#endif
 
-#define BTN_DEBOUNCE_UPDATE_INTERVAL_MS 1
-
+// List of buttons defined by the board configuration.
 static const uint8_t m_btn_list[BUTTONS_NUMBER] = BUTTONS_LIST;
 
+// One-shot timer used to wait until the button input
+// remains stable for the complete debounce interval.
 APP_TIMER_DEF(m_debounce_timer);
 
+// Callback to the logical button layer.
 static btn_hw_callback_t m_callback;
 
+// Last button state confirmed as stable.
 static volatile bool m_confirmed_state;
-static volatile bool m_debounce_candidate_state;
-static volatile bool m_debounce_active;
 
-static volatile uint32_t m_last_edge_tick;
+// Current button state observed after the latest GPIO edge.
+static volatile bool m_debounce_candidate_state;
+
+// True while the debounce timer is active.
+static volatile bool m_debounce_active;
 
 /**
  * @brief Handles GPIO edge events.
+ *
+ * A GPIO edge does not immediately mean that the button state
+ * has changed. Mechanical contacts can produce several edges
+ * while settling. Therefore, every edge starts a new debounce
+ * interval.
  *
  * @param[in] pin GPIO pin number.
  * @param[in] action GPIOTE event polarity.
@@ -39,10 +47,28 @@ static void gpiote_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t ac
 /**
  * @brief Handles debounce timer events.
  *
+ * The timer expires after the debounce interval. The GPIO state
+ * is checked again. If it differs from the candidate state, the
+ * input changed during the interval and another debounce interval
+ * is started. Otherwise the candidate state is considered stable
+ * and becomes the confirmed state.
+ *
  * @param[in] p_context Timer context.
  */
 static void debounce_timer_handler(void *p_context);
 
+/**
+ * @brief Initializes button hardware handling.
+ *
+ * Configures GPIOTE for button edge detection, initializes the
+ * debounce timer and reads the initial physical button state.
+ *
+ * The initial state is considered confirmed immediately, so a
+ * button that is already pressed during initialization does not
+ * generate a press event.
+ *
+ * @param[in] callback Callback for confirmed button state changes.
+ */
 void btn_hw_init(btn_hw_callback_t callback)
 {
     nrfx_gpiote_in_config_t config = NRFX_GPIOTE_CONFIG_IN_SENSE_TOGGLE(false);
@@ -51,7 +77,7 @@ void btn_hw_init(btn_hw_callback_t callback)
 
     APP_ERROR_CHECK(app_timer_create(
         &m_debounce_timer,
-        APP_TIMER_MODE_REPEATED,
+        APP_TIMER_MODE_SINGLE_SHOT,
         debounce_timer_handler));
 
     if (!nrfx_gpiote_is_init())
@@ -66,9 +92,14 @@ void btn_hw_init(btn_hw_callback_t callback)
 
     CRITICAL_REGION_ENTER();
 
+    // Enable GPIO edge events before starting to monitor the button.
     nrfx_gpiote_in_event_enable(m_btn_list[0], true);
 
-    m_confirmed_state = (nrf_gpio_pin_read(m_btn_list[0]) == BUTTONS_ACTIVE_STATE);
+    // Establish the initial confirmed state of the button.
+    m_confirmed_state =
+        (nrf_gpio_pin_read(m_btn_list[0]) == BUTTONS_ACTIVE_STATE);
+
+    // The initial state is already considered stable.
     m_debounce_candidate_state = m_confirmed_state;
     m_debounce_active = false;
 
@@ -79,47 +110,60 @@ static void gpiote_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t ac
 {
     (void)action;
 
-    m_debounce_candidate_state = (nrf_gpio_pin_read(pin) == BUTTONS_ACTIVE_STATE);
-    m_last_edge_tick = app_timer_cnt_get();
+    // Remember the state observed at the latest GPIO edge.
+    m_debounce_candidate_state =
+        (nrf_gpio_pin_read(pin) == BUTTONS_ACTIVE_STATE);
 
-    if (m_debounce_active) return;
+    // If a previous debounce interval is still active,
+    // cancel it because a new edge has restarted the interval.
+    if (m_debounce_active)
+        APP_ERROR_CHECK(app_timer_stop(m_debounce_timer));
 
     m_debounce_active = true;
 
+    // Wait for the input to remain stable for the debounce interval.
     APP_ERROR_CHECK(app_timer_start(
         m_debounce_timer,
-        APP_TIMER_TICKS(BTN_DEBOUNCE_UPDATE_INTERVAL_MS),
+        APP_TIMER_TICKS(BTN_DEBOUNCE_TIME_MS),
         NULL));
 }
 
 static void debounce_timer_handler(void *p_context)
 {
     bool pin_state;
-    uint32_t now;
 
     (void)p_context;
 
-    pin_state = (nrf_gpio_pin_read(m_btn_list[0]) == BUTTONS_ACTIVE_STATE);
-    now = app_timer_cnt_get();
+    // Read the physical input again after the debounce interval.
+    pin_state =
+        (nrf_gpio_pin_read(m_btn_list[0]) == BUTTONS_ACTIVE_STATE);
 
+    // The input changed during the debounce interval.
+    // The new state is now the candidate state, so start
+    // another complete debounce interval.
     if (pin_state != m_debounce_candidate_state)
     {
         m_debounce_candidate_state = pin_state;
-        m_last_edge_tick = now;
+
+        APP_ERROR_CHECK(app_timer_start(
+            m_debounce_timer,
+            APP_TIMER_TICKS(BTN_DEBOUNCE_TIME_MS),
+            NULL));
+
         return;
     }
 
-    if (app_timer_cnt_diff_compute(now, m_last_edge_tick) <
-        APP_TIMER_TICKS(BTN_DEBOUNCE_TIME_MS)) return;
-
+    // The input remained unchanged for the complete interval.
+    // The debounce procedure is therefore finished.
     m_debounce_active = false;
 
-    APP_ERROR_CHECK(app_timer_stop(m_debounce_timer));
-
+    // Nothing changed from the last confirmed state.
     if (m_confirmed_state == pin_state) return;
 
+    // The new state is now confirmed.
     m_confirmed_state = pin_state;
 
+    // Notify the logical button layer about the confirmed change.
     if (m_callback != NULL)
         m_callback(pin_state);
 }

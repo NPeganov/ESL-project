@@ -5,94 +5,161 @@
  * @ingroup blinky_example
  * @brief Blinky Example Application main file.
  *
- * This file contains the source code for a sample application to blink LEDs.
- *
  */
 
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "app_error.h"
+#include "nrfx_clock.h"
 #include "nrfx_systick.h"
 
 #include "btn/btn.h"
 #include "leds/leds.h"
 #include "leds/led_controller.h"
 
-/**
- * @brief Function for application main entry.
- */
-
 #define PWM_PERIOD_US       1000
 #define FADE_DURATION_MS    800
 #define CYCLE_PAUSE_MS      500
 
+/**
+ * @brief Handles clock events.
+ *
+ * @param[in] event Clock event.
+ */
+static void clock_event_handler(nrfx_clock_evt_type_t event)
+{
+    (void)event;
+}
+
+/**
+ * @brief Initializes the low-frequency clock.
+ */
+static void clock_init(void)
+{
+    APP_ERROR_CHECK(nrfx_clock_init(clock_event_handler));
+
+    nrfx_clock_enable();
+    nrfx_clock_lfclk_start();
+
+    while (!nrfx_clock_lfclk_is_running())
+    {}
+}
+
+/**
+ * @brief Returns the number of blinks configured for an LED.
+ *
+ * @param[in] dev_id Device identifier.
+ * @param[in] led_idx LED index.
+ *
+ * @return Number of blinks, or zero if the LED is not configured.
+ */
+static uint8_t get_led_blink_count(const char *dev_id, uint32_t led_idx)
+{
+    if (led_idx >= LEDS_NUMBER || led_idx >= sizeof("6609") - 1)
+        return 0;
+
+    if (!isdigit((unsigned char)dev_id[led_idx]))
+        return 0;
+
+    return (uint8_t)(dev_id[led_idx] - '0');
+}
+
+/**
+ * @brief Finds the next LED configured for blinking.
+ *
+ * @param[in] dev_id Device identifier.
+ * @param[in] current_idx Current LED index.
+ *
+ * @return Index of the next configured LED.
+ */
+static uint32_t get_next_led_index(const char *dev_id, uint32_t current_idx)
+{
+    for (uint32_t i = 1; i <= LEDS_NUMBER; i++)
+    {
+        uint32_t led_idx = (current_idx + i) % LEDS_NUMBER;
+
+        if (get_led_blink_count(dev_id, led_idx) > 0)
+            return led_idx;
+    }
+
+    return current_idx;
+}
+
+/**
+ * @brief Function for application main entry.
+ */
 int main(void)
 {
     const char dev_id[] = "6609";
 
     led_controller_t controller;
-    bool button_pressed = false;
+
+    uint32_t led_idx = 0;
+    bool sequence_started = false;
+    bool controller_paused = false;
 
     leds_init();
     leds_off();
 
     nrfx_systick_init();
+    clock_init();
+
     btn_init();
 
     if (!led_controller_init(
             &controller,
             PWM_PERIOD_US,
             FADE_DURATION_MS,
-            CYCLE_PAUSE_MS)) while (true); // incorrect initialization
+            CYCLE_PAUSE_MS)) while (true);
+
+    led_idx = get_next_led_index(dev_id, LEDS_NUMBER - 1);
 
     while (true)
     {
-        for (uint32_t i = 0; i < LEDS_NUMBER && i < sizeof(dev_id) - 1; i++)
+        btn_event_t event;
+
+        // Handle double-press events.
+        while ((event = btn_event_take()) != BTN_EVENT_NONE)
         {
-            if (!isdigit((unsigned char)dev_id[i])) continue;
+            if (event != BTN_EVENT_DOUBLE_PRESS) continue;
 
-            uint8_t blink_remaining = (uint8_t)(dev_id[i] - '0');
-            if (blink_remaining == 0) continue;
-
-            // Wait until the button is pressed.
-            while (!button_pressed)
+            if (!sequence_started)
             {
-                btn_event_t event = btn_event_take();
+                led_controller_start(
+                    &controller,
+                    led_idx,
+                    get_led_blink_count(dev_id, led_idx));
 
-                if (event == BTN_EVENT_PRESS)
-                    button_pressed = true;
-                else if (event == BTN_EVENT_RELEASE)
-                    button_pressed = false;
-
-                led_controller_process(&controller);
+                sequence_started = true;
             }
+            else if (controller_paused)
+            {
+                led_controller_resume(&controller);
+                controller_paused = false;
+            }
+            else
+            {
+                led_controller_pause(&controller);
+                controller_paused = true;
+            }
+        }
+
+        // Update the current LED sequence.
+        led_controller_process(&controller);
+
+        // Start the next LED when the current sequence is complete.
+        if (sequence_started &&
+            !controller_paused &&
+            !led_controller_is_active(&controller))
+        {
+            led_idx = get_next_led_index(dev_id, led_idx);
 
             led_controller_start(
                 &controller,
-                i,
-                blink_remaining);
-
-            while (led_controller_is_active(&controller))
-            {
-                btn_event_t event;
-
-                while ((event = btn_event_take()) != BTN_EVENT_NONE)
-                {
-                    if (event == BTN_EVENT_PRESS)
-                    {
-                        button_pressed = true;
-                        led_controller_resume(&controller);
-                    }
-                    else if (event == BTN_EVENT_RELEASE)
-                    {
-                        button_pressed = false;
-                        led_controller_pause(&controller);
-                    }
-                }
-
-                led_controller_process(&controller);
-            }
+                led_idx,
+                get_led_blink_count(dev_id, led_idx));
         }
     }
 }

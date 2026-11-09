@@ -16,6 +16,8 @@
 #define BTN_EVENT_QUEUE_SIZE 8
 #endif
 
+// The timer is single-shot because the double-press interval is restarted
+// explicitly after every confirmed release.
 APP_TIMER_DEF(m_double_press_timer);
 
 static btn_event_t m_event_queue[BTN_EVENT_QUEUE_SIZE];
@@ -31,6 +33,9 @@ static uint32_t m_first_release_tick;
 
 /**
  * @brief Adds an event to the button event queue.
+ *
+ * If the queue is full, the new event is discarded. This preserves all
+ * events already queued and prevents overwriting unread events.
  *
  * @param[in] event Event to add.
  */
@@ -119,6 +124,7 @@ static void button_state_changed(bool pressed)
 
     m_press_started = false;
 
+    // A single press is reported immediately after every confirmed release.
     event_queue_push(BTN_EVENT_SINGLE_PRESS);
 
     now = app_timer_cnt_get();
@@ -132,6 +138,8 @@ static void button_state_changed(bool pressed)
 
             APP_ERROR_CHECK(app_timer_stop(m_double_press_timer));
 
+            // The second completed press-release cycle occurred within
+            // the double-press interval.
             event_queue_push(BTN_EVENT_DOUBLE_PRESS);
             return;
         }
@@ -139,6 +147,7 @@ static void button_state_changed(bool pressed)
         APP_ERROR_CHECK(app_timer_stop(m_double_press_timer));
     }
 
+    // Start a new double-press window from this confirmed release.
     m_double_press_pending = true;
     m_first_release_tick = now;
 
@@ -152,5 +161,6 @@ static void double_press_timer_handler(void *p_context)
 {
     (void)p_context;
 
+    // The double-press window has expired without a qualifying second release.
     m_double_press_pending = false;
 }
