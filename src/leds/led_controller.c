@@ -120,9 +120,12 @@ void led_controller_resume(led_controller_t *controller) {
     // A sequence must be prepared before it can be started.
     if (controller->cycle_count == 0) return;
 
-    if (controller->state == LED_CONTROLLER_STATE_IDLE)
+    if (controller->state == LED_CONTROLLER_STATE_IDLE) {
         // Start a prepared or previously completed sequence from the beginning.
+        controller->cycles_completed = 0;
+        controller->pause_elapsed_ms = 0;
         start_fade_in(controller);
+    }
     else if (controller->phase == LED_CONTROLLER_PHASE_PAUSE) {
         // Restart the entire inter-cycle pause after resuming.
         controller->pause_elapsed_ms = 0;
