@@ -1,5 +1,5 @@
-#ifndef _FADE_H_
-#define _FADE_H_
+#ifndef _FADE_
+#define _FADE_
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -11,13 +11,12 @@
 #define FADE_PERCENT_MAX           100
 
 // Maintains the timing and progress of a PWM brightness transition.
-typedef struct
-{
+typedef struct {
     soft_pwm_t *pwm;                    // Software PWM instance
     uint8_t start_duty;                 // Initial duty cycle in percent
     uint8_t target_duty;                // Target duty cycle in percent
-    uint32_t duration_ms;               // Fade duration in milliseconds
-    uint32_t elapsed_ms;                // Elapsed fade time in milliseconds
+    uint32_t duration_ms;               // Fade duration in processed milliseconds
+    uint32_t elapsed_ms;                // Accumulated fade progress
     nrfx_systick_state_t update_time;   // Timestamp of the last update
     bool active;                        // Fade is active
     bool paused;                        // Fade is paused
@@ -27,7 +26,6 @@ typedef struct
 void fade_init(
     fade_t *fade,
     soft_pwm_t *pwm);
-
 
 // Start a fade operation.
 void fade_start(
