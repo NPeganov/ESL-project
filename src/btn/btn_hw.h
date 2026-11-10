@@ -3,27 +3,15 @@
 
 #include <stdbool.h>
 
-/**
- * @brief Callback for confirmed button state changes.
- *
- * @param[in] pressed True if the button is pressed.
- */
+// Callback for confirmed button state changes.
 typedef void (*btn_hw_callback_t)(bool pressed);
 
-/**
- * @brief Initializes button hardware handling.
- *
- * Initializes LFCLK, app_timer and GPIOTE.
- *
- * @param[in] callback Callback for confirmed button state changes.
- */
+// Configures GPIOTE and creates the debounce timer.
+// LFCLK and app_timer must already be initialized.
 void btn_hw_init(btn_hw_callback_t callback);
 
-/**
- * @brief Starts button hardware event handling.
- *
- * Enables GPIOTE events and establishes the initial button state.
- */
+// Enables GPIO events and starts debounce of the initial button state.
+// The callback is invoked after the initial state has been confirmed.
 void btn_hw_start(void);
 
 #endif

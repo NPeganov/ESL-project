@@ -4,6 +4,7 @@
 #include "app_error.h"
 #include "app_timer.h"
 #include "app_util_platform.h"
+#include "nrfx_clock.h"
 
 #include "btn.h"
 #include "btn_hw.h"
@@ -26,37 +27,28 @@ static volatile uint8_t m_event_head;
 static volatile uint8_t m_event_tail;
 static volatile uint8_t m_event_count;
 
+// True after the initial button state has been confirmed.
+static bool m_state_initialized;
+
+// True while the logical button state is pressed.
 static bool m_press_started;
+
+// True while waiting for a possible second completed press.
 static bool m_double_press_pending;
 
 static uint32_t m_first_release_tick;
 
-/**
- * @brief Adds an event to the button event queue.
- *
- * If the queue is full, the new event is discarded. This preserves all
- * events already queued and prevents overwriting unread events.
- *
- * @param[in] event Event to add.
- */
+static void clock_event_handler(nrfx_clock_evt_type_t event);
+static void clock_init(void);
 static void event_queue_push(btn_event_t event);
-
-/**
- * @brief Handles confirmed button state changes.
- *
- * @param[in] pressed True if the button is pressed.
- */
 static void button_state_changed(bool pressed);
-
-/**
- * @brief Handles double-press timer expiration.
- *
- * @param[in] p_context Timer context.
- */
 static void double_press_timer_handler(void *p_context);
 
-void btn_init(void)
-{
+void btn_init(void) {
+    clock_init();
+
+    APP_ERROR_CHECK(app_timer_init());
+
     btn_hw_init(button_state_changed);
 
     APP_ERROR_CHECK(app_timer_create(
@@ -67,14 +59,12 @@ void btn_init(void)
     btn_hw_start();
 }
 
-btn_event_t btn_event_take(void)
-{
+btn_event_t btn_event_take(void) {
     btn_event_t event = BTN_EVENT_NONE;
 
     CRITICAL_REGION_ENTER();
 
-    if (m_event_count > 0)
-    {
+    if (m_event_count > 0) {
         event = m_event_queue[m_event_tail];
 
         m_event_tail++;
@@ -89,12 +79,34 @@ btn_event_t btn_event_take(void)
     return event;
 }
 
-static void event_queue_push(btn_event_t event)
-{
+static void clock_event_handler(nrfx_clock_evt_type_t event) {
+    (void)event;
+}
+
+static void clock_init(void) {
+    nrfx_err_t err_code;
+
+    err_code = nrfx_clock_init(clock_event_handler);
+
+    if (err_code != NRFX_SUCCESS &&
+        err_code != NRFX_ERROR_ALREADY_INITIALIZED)
+        APP_ERROR_CHECK(err_code);
+
+    nrfx_clock_enable();
+
+    // Start LFCLK only if it is not already running.
+    if (!nrfx_clock_lfclk_is_running()) {
+        nrfx_clock_lfclk_start();
+
+        while (!nrfx_clock_lfclk_is_running());
+    }
+}
+
+static void event_queue_push(btn_event_t event) {
     CRITICAL_REGION_ENTER();
 
-    if (m_event_count < BTN_EVENT_QUEUE_SIZE)
-    {
+    // Discard new events if the queue is full to preserve unread events.
+    if (m_event_count < BTN_EVENT_QUEUE_SIZE) {
         m_event_queue[m_event_head] = event;
 
         m_event_head++;
@@ -107,12 +119,18 @@ static void event_queue_push(btn_event_t event)
     CRITICAL_REGION_EXIT();
 }
 
-static void button_state_changed(bool pressed)
-{
+static void button_state_changed(bool pressed) {
     uint32_t now;
 
-    if (pressed)
-    {
+    // The first confirmed state initializes the logical state without
+    // generating events. This also handles a button held during startup.
+    if (!m_state_initialized) {
+        m_press_started = pressed;
+        m_state_initialized = true;
+        return;
+    }
+
+    if (pressed) {
         m_press_started = true;
         event_queue_push(BTN_EVENT_PRESS);
         return;
@@ -124,22 +142,19 @@ static void button_state_changed(bool pressed)
 
     m_press_started = false;
 
-    // A single press is reported immediately after every confirmed release.
+    // Report every completed press-release cycle.
     event_queue_push(BTN_EVENT_SINGLE_PRESS);
 
     now = app_timer_cnt_get();
 
-    if (m_double_press_pending)
-    {
+    if (m_double_press_pending) {
         if (app_timer_cnt_diff_compute(now, m_first_release_tick) <
-            APP_TIMER_TICKS(BTN_DOUBLE_PRESS_TIME_MS))
-        {
+            APP_TIMER_TICKS(BTN_DOUBLE_PRESS_TIME_MS)) {
             m_double_press_pending = false;
 
             APP_ERROR_CHECK(app_timer_stop(m_double_press_timer));
 
-            // The second completed press-release cycle occurred within
-            // the double-press interval.
+            // The second completed cycle occurred within the double-press interval.
             event_queue_push(BTN_EVENT_DOUBLE_PRESS);
             return;
         }
@@ -157,10 +172,9 @@ static void button_state_changed(bool pressed)
         NULL));
 }
 
-static void double_press_timer_handler(void *p_context)
-{
+static void double_press_timer_handler(void *p_context) {
     (void)p_context;
 
-    // The double-press window has expired without a qualifying second release.
+    // The double-press window expired without a qualifying second release.
     m_double_press_pending = false;
 }
