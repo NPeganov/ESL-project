@@ -7,82 +7,48 @@
 #include "nrfx_systick.h"
 #include "soft_pwm.h"
 
-#define FADE_UPDATE_INTERVAL_MS    1U
-#define FADE_PERCENT_MAX           100U
+#define FADE_UPDATE_INTERVAL_MS    1
+#define FADE_PERCENT_MAX           100
 
+// Maintains the timing and progress of a PWM brightness transition.
 typedef struct
 {
-    soft_pwm_t *pwm;                    // Pointer to the software PWM instance.
-    uint8_t start_duty;                 // Initial duty cycle in percent.
-    uint8_t target_duty;                // Target duty cycle in percent.
-    uint32_t duration_ms;               // Fade duration in milliseconds.
-    uint32_t elapsed_ms;                // Elapsed fade time in milliseconds.
-    nrfx_systick_state_t update_time;   // Start time of the current update interval.
-    bool active;                        // True while the fade is active.
-    bool paused;                        // True while the fade is paused.
+    soft_pwm_t *pwm;                    // Software PWM instance
+    uint8_t start_duty;                 // Initial duty cycle in percent
+    uint8_t target_duty;                // Target duty cycle in percent
+    uint32_t duration_ms;               // Fade duration in milliseconds
+    uint32_t elapsed_ms;                // Elapsed fade time in milliseconds
+    nrfx_systick_state_t update_time;   // Timestamp of the last update
+    bool active;                        // Fade is active
+    bool paused;                        // Fade is paused
 } fade_t;
 
-/**
- * @brief Initialize a fade instance.
- *
- * @param fade Fade instance to initialize.
- * @param pwm Software PWM instance used by the fade.
- */
+// Initialize a fade instance.
 void fade_init(
     fade_t *fade,
     soft_pwm_t *pwm);
 
-/**
- * @brief Start a fade operation.
- *
- * @param fade Fade instance.
- * @param start_duty Initial duty cycle in percent.
- * @param target_duty Target duty cycle in percent.
- * @param duration_ms Fade duration in milliseconds.
- */
+
+// Start a fade operation.
 void fade_start(
     fade_t *fade,
-    uint8_t start_duty,
-    uint8_t target_duty,
-    uint32_t duration_ms);
+    uint8_t start_duty,     // Initial duty cycle in percent
+    uint8_t target_duty,    // Target duty cycle in percent
+    uint32_t duration_ms);  // Fade duration in milliseconds
 
-/**
- * @brief Stop the active fade operation.
- *
- * @param fade Fade instance.
- */
+// Stop the active fade while preserving its progress.
 void fade_stop(fade_t *fade);
 
-/**
- * @brief Resume a previously stopped fade operation.
- *
- * @param fade Fade instance.
- */
+// Resume a previously stopped fade operation.
 void fade_resume(fade_t *fade);
 
-/**
- * @brief Process the active fade.
- *
- * @param fade Fade instance.
- */
+// Process the active fade.
 void fade_process(fade_t *fade);
 
-/**
- * @brief Check whether the fade is active.
- *
- * @param fade Fade instance.
- *
- * @return true if the fade is active, otherwise false.
- */
+// Check whether the fade is active.
 bool fade_is_active(const fade_t *fade);
 
-/**
- * @brief Check whether the fade is paused.
- *
- * @param fade Fade instance.
- *
- * @return true if the fade is paused, otherwise false.
- */
+// Check whether the fade is paused.
 bool fade_is_paused(const fade_t *fade);
 
 #endif

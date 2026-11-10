@@ -28,6 +28,7 @@ SRC_FILES += \
   $(PROJ_DIR)/leds/soft_pwm.c \
   $(PROJ_DIR)/leds/fade.c \
   $(PROJ_DIR)/leds/led_controller.c \
+  $(PROJ_DIR)/leds/led_sequence.c \
   $(PROJ_DIR)/btn/btn.c \
   $(PROJ_DIR)/btn/btn_hw.c \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52840.S \
