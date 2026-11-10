@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <stdint.h>
 
 #include "nrf_gpio.h"
 #include "pca10059.h"
