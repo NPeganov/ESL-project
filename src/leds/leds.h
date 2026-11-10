@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "pca10059.h"
+
 void led_on(uint32_t led_idx);
 void led_off(uint32_t led_idx);
 void leds_off(void);
