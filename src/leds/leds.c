@@ -1,6 +1,6 @@
-#include <stddef.h>
 #include <stdint.h>
 
+#include "nrf_assert.h"
 #include "nrf_gpio.h"
 #include "pca10059.h"
 
@@ -20,12 +20,12 @@ void led_off(uint32_t led_idx) {
 }
 
 void leds_off(void) {
-    for (size_t led_idx = 0; led_idx < LEDS_NUMBER; led_idx++)
+    for (uint32_t led_idx = 0; led_idx < LEDS_NUMBER; led_idx++)
         led_off(led_idx);
 }
 
 void leds_init(void) {
-    for (size_t led_idx = 0; led_idx < LEDS_NUMBER; led_idx++)
+    for (uint32_t led_idx = 0; led_idx < LEDS_NUMBER; led_idx++)
         nrf_gpio_cfg_output(m_led_list[led_idx]);
 
     // Initialize all LEDs in the off state.
