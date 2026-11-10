@@ -1,12 +1,12 @@
-#ifndef _SOFT_PWM_H_
-#define _SOFT_PWM_H_
+#ifndef _SOFT_PWM_
+#define _SOFT_PWM_
 
 #include <stdbool.h>
 #include <stdint.h>
 
 #include "nrfx_systick.h"
 
-#define SOFT_PWM_PERCENT_MAX    100U
+#define SOFT_PWM_PERCENT_MAX    100
 
 typedef void (*soft_pwm_output_t)(bool state, void *context);
 
@@ -20,37 +20,26 @@ typedef struct
     void *output_context;              // User-defined callback context.
 } soft_pwm_t;
 
-/**
- * @brief Initialize a software PWM instance.
- *
- * @param pwm PWM instance to initialize.
- * @param period_us PWM period in microseconds.
- * @param output PWM output callback.
- * @param output_context User-defined callback context.
- *
- * @return true if initialization was successful, otherwise false.
- */
+// Initialize a software PWM instance.
+//
+// SysTick must be initialized before calling this function.
+// The period must not exceed the maximum timeout supported by nrfx_systick_test().
 bool soft_pwm_init(
     soft_pwm_t *pwm,
     uint32_t period_us,
     soft_pwm_output_t output,
     void *output_context);
 
-/**
- * @brief Set the PWM duty cycle.
- *
- * @param pwm PWM instance.
- * @param duty_percent Duty cycle in percent.
- */
+// Set the PWM duty cycle.
+//
+// The duty cycle is clamped to the range from 0 to SOFT_PWM_PERCENT_MAX.
 void soft_pwm_set_duty(
     soft_pwm_t *pwm,
     uint8_t duty_percent);
 
-/**
- * @brief Process the software PWM state.
- *
- * @param pwm PWM instance.
- */
+// Process the software PWM state.
+//
+// Call this function regularly to maintain PWM timing.
 void soft_pwm_process(soft_pwm_t *pwm);
 
 #endif
