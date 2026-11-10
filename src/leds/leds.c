@@ -2,7 +2,6 @@
 
 #include "nrf_assert.h"
 #include "nrf_gpio.h"
-#include "pca10059.h"
 
 #include "leds.h"
 
