@@ -20,7 +20,6 @@ int main(void)
     led_sequence_t sequence;
 
     leds_init();
-    leds_off();
 
     nrfx_systick_init();
 
