@@ -110,6 +110,9 @@ static void event_queue_push(btn_event_t event) {
 static void button_state_changed(bool pressed) {
     uint32_t now;
 
+    // This callback runs in interrupt context. Logging must remain deferred
+    // so that the callback does not perform synchronous backend I/O.
+
     // The first confirmed state initializes the logical state without
     // generating events. This also handles a button held during startup.
     if (!m_state_initialized) {
@@ -121,16 +124,12 @@ static void button_state_changed(bool pressed) {
     if (pressed) {
         m_press_started = true;
 
-        // This callback runs in interrupt context. Logging must remain deferred
-        // so that the callback does not perform synchronous backend I/O.
         LOG_INFO("Button event: PRESSED");
 
         event_queue_push(BTN_EVENT_PRESS);
         return;
     }
 
-    // This callback runs in interrupt context. Logging must remain deferred
-    // so that the callback does not perform synchronous backend I/O.
     LOG_INFO("Button event: RELEASED");
 
     event_queue_push(BTN_EVENT_RELEASE);
@@ -140,8 +139,6 @@ static void button_state_changed(bool pressed) {
     m_press_started = false;
 
     // Report every completed press-release cycle.
-    // This callback runs in interrupt context. Logging must remain deferred
-    // so that the callback does not perform synchronous backend I/O.
     LOG_INFO("Button event: SINGLE");
 
     event_queue_push(BTN_EVENT_SINGLE_PRESS);
@@ -156,8 +153,6 @@ static void button_state_changed(bool pressed) {
             APP_ERROR_CHECK(app_timer_stop(m_double_press_timer));
 
             // The second completed cycle occurred within the double-press interval.
-            // This callback runs in interrupt context. Logging must remain deferred
-            // so that the callback does not perform synchronous backend I/O.
             LOG_INFO("Button event: DOUBLE");
 
             event_queue_push(BTN_EVENT_DOUBLE_PRESS);
