@@ -30,6 +30,7 @@ static void system_init(led_sequence_t *sequence) {
     // Initialize logging after btn_init() so the USB backend can reuse
     // the already initialized clock infrastructure.
     log_init();
+    LOG_INFO("Application started");
 
     if (!led_sequence_init(
             sequence,
