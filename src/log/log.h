@@ -1,7 +1,7 @@
 #ifndef _LOG_H_
 #define _LOG_H_
 
-#include <stdint.h>
+#include "nrf_log.h"
 
 void log_init(void);
 void log_process(void);
