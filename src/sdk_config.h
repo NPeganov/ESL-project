@@ -3181,6 +3181,10 @@
 #define NRFX_CLOCK_CONFIG_IRQ_PRIORITY 6
 #endif
 
+#ifndef NRFX_POWER_CONFIG_IRQ_PRIORITY
+#define NRFX_POWER_CONFIG_IRQ_PRIORITY 6
+#endif
+
 // </h> 
 //==========================================================
 
