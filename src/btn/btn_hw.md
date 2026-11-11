@@ -720,6 +720,50 @@ callback
 
 ------------------------------------------------------------------------
 
+# Logging
+
+`btn_hw` регистрирует два события аппаратного уровня.
+
+### Debounce instability
+
+Сообщение:
+
+~~~ text
+Button bounce detected
+~~~
+
+появляется, когда после истечения очередного 10 ms debounce interval
+повторное чтение GPIO отличается от текущего
+`m_debounce_candidate_state`.
+
+В этом случае новое состояние становится candidate, и запускается
+ещё один полный 10 ms interval. Дополнительный флаг для определения
+активного debounce interval не используется: сама проверка различия
+состояний определяет необходимость продолжения debounce.
+
+### Stable physical level
+
+После успешного debounce выводится:
+
+~~~ text
+Button stable level: Low
+~~~
+
+или:
+
+~~~ text
+Button stable level: High
+~~~
+
+Это физический уровень GPIO, а не логическое состояние `pressed` или
+`released`. Сообщение выводится и для первоначального состояния,
+когда первый 10 ms interval успешно завершился.
+
+Логические события `PRESSED`, `RELEASED`, `SINGLE` и `DOUBLE`
+формируются уже модулем `btn` и описаны в его документации.
+
+---
+
 # Interrupt context
 
 Оба основных callback выполняются в interrupt context:
