@@ -3185,6 +3185,14 @@
 #define NRFX_POWER_CONFIG_IRQ_PRIORITY 6
 #endif
 
+#ifndef NRFX_USBD_CONFIG_IRQ_PRIORITY
+#define NRFX_USBD_CONFIG_IRQ_PRIORITY 7
+#endif
+
+#ifndef NRFX_USBD_CONFIG_DMASCHEDULER_ISO_BOOST
+#define NRFX_USBD_CONFIG_DMASCHEDULER_ISO_BOOST 1
+#endif
+
 // </h> 
 //==========================================================
 
