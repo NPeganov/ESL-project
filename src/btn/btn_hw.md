@@ -136,6 +136,8 @@ debounce.
 btn_init()
    │
    ├── clock_init()
+   │      ├── nrf_drv_clock_init_check()
+   │      ├── nrf_drv_clock_init() if needed
    │      └── <span style="color:#2e7d32"><b>LFCLK запущен</b></span>
    │
    ├── app_timer_init()
@@ -468,12 +470,15 @@ rtc1_debounce_callback()
 
 Для работы RTC1 timer требуется работающий LFCLK.
 
-Поэтому `btn_init()` сначала запускает LFCLK, затем инициализирует
-`app_timer`, и только после этого передаёт управление `btn_hw`.
+`btn_init()` сначала инициализирует общий legacy clock driver, если
+он ещё не готов, запускает LFCLK, затем инициализирует `app_timer` и
+только после этого передаёт управление `btn_hw`.
 
 ``` text
 clock_init()
     │
+    ├── nrf_drv_clock_init_check()
+    ├── nrf_drv_clock_init() if needed
     └── <span style="color:#2e7d32"><b>LFCLK running</b></span>
              │
              ▼
