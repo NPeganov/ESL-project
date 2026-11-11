@@ -73,6 +73,7 @@ INC_FOLDERS += \
   $(SDK_ROOT)/integration/nrfx \
   $(SDK_ROOT)/integration/nrfx/legacy \
   $(SDK_ROOT)/components/libraries/timer \
+  $(SDK_ROOT)/components/libraries/atomic \
   $(SDK_ROOT)/components/libraries/atomic_fifo \
   $(SDK_ROOT)/components/libraries/sortlist \
   $(SDK_ROOT)/components/libraries/usbd \
