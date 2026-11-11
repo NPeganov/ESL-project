@@ -15,8 +15,7 @@
 #define INTER_LED_PAUSE_MS      500
 
 
-int main(void)
-{
+int main(void) {
     led_sequence_t sequence;
 
     leds_init();
@@ -33,9 +32,8 @@ int main(void)
             CYCLE_PAUSE_MS,
             INTER_LED_PAUSE_MS)) while (true);
 
-    while (true)
-    {
-        // Keep the LED sequence and software PWM serviced.
+    while (true) {
+        // Keep the LED sequence and software PWM serviced, including while paused.
         led_sequence_process(&sequence);
 
         // Process all pending button events.
