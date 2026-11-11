@@ -79,7 +79,7 @@ flowchart TD
 
     subgraph BUTTON["Кнопочная подсистема"]
         BTN["btn"]
-        CLOCK["nrfx_clock / LFCLK"]
+        CLOCK["nrf_drv_clock / LFCLK"]
         TIMER["app_timer"]
         HW["btn_hw"]
         GPIOTE["nrfx_gpiote / GPIOTE"]
@@ -411,7 +411,7 @@ btn_init()
     +--> btn_hw_start()
 ~~~
 
-btn_init() владеет инициализацией LFCLK и app_timer.
+btn_init() владеет инициализацией общего legacy clock driver, LFCLK и app_timer.
 
 btn_hw_init() предполагает, что LFCLK и app_timer уже готовы.
 
