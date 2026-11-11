@@ -564,6 +564,48 @@ main не разбирает строку. Проверка её минимал�
 
 ---
 
+# Logging в main loop
+
+Логирование является отдельной частью главного цикла и обслуживается
+после LED service:
+
+~~~ text
+led_sequence_process()
+        |
+        v
+log_process()
+        |
+        +--> LOG_BACKEND_USB_PROCESS()
+        |
+        +--> NRF_LOG_PROCESS()
+        |
+        v
+button event processing
+~~~
+
+LOG_INFO() может вызываться не только из main, но и из callback
+кнопочной подсистемы. При включённом deferred logging такие сообщения
+не передаются в USB непосредственно из interrupt context. Они остаются
+в очереди Nordic logger и обрабатываются позднее через log_process().
+
+Текущие диагностические сообщения приложения включают:
+
+- Button bounce detected — GPIO изменился во время debounce;
+- Button stable level: Low/High — физический уровень GPIO подтверждён
+  после debounce;
+- Button event: PRESSED/RELEASED/SINGLE/DOUBLE — подтверждённое
+  логическое событие кнопки;
+- LED N: FadeIn started/completed — начало и завершение fade-in;
+- LED N: FadeOut started/completed — начало и завершение fade-out;
+- LED N: Fade cycle pause started — начало межцикловой паузы;
+- LED sequence paused/resumed by double press — изменение состояния
+  верхнеуровневой последовательности по двойному нажатию.
+
+В сообщениях LED используется нумерация с 1, хотя внутренний индекс
+LED начинается с 0.
+
+---
+
 # Главный цикл
 
 После успешной инициализации управление переходит в:
@@ -599,6 +641,10 @@ while (true) {
 1. сначала обслуживается LED-подсистема;
 2. затем обслуживается USB backend и обрабатывается одна отложенная log-запись;
 3. затем обрабатываются все накопленные события кнопки.
+
+При этом log_process() не является полностью неблокирующим: USB backend
+может ожидать завершения передачи. Поэтому слишком длительная обработка
+логов может увеличить интервал между вызовами soft_pwm_process().
 
 ---
 
@@ -696,13 +742,20 @@ toggle LED sequence
 При:
 
 ~~~ c
-if (led_sequence_is_running(&sequence))
+if (led_sequence_is_running(&sequence)) {
     led_sequence_pause(&sequence);
-else
+    LOG_INFO("LED sequence paused by double press");
+}
+else {
     led_sequence_resume(&sequence);
+    LOG_INFO("LED sequence resumed by double press");
+}
 ~~~
 
-получается:
+после изменения состояния sequence также регистрируется соответствующее
+диагностическое сообщение.
+
+Получается:
 
 ~~~ text
 running = false
@@ -877,6 +930,9 @@ SysTick init
  |
  v
 button init
+ |
+ v
+log init
  |
  v
 LED sequence init
