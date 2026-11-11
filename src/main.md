@@ -395,8 +395,9 @@ btn_init()
     |
     +--> clock_init()
     |       |
-    |       +--> nrfx_clock_init()
-    |       +--> LFCLK enable/start
+    |       +--> nrf_drv_clock_init_check()
+    |       +--> nrf_drv_clock_init() if needed
+    |       +--> LFCLK request/start
     |
     +--> app_timer_init()
     |
