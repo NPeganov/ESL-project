@@ -74,7 +74,9 @@ btn_init();
 btn_init()
    │
    ├── clock_init()
-   │      └── LFCLK
+   │      ├── nrf_drv_clock_init_check()
+   │      ├── nrf_drv_clock_init() if needed
+   │      └── LFCLK request/start
    │
    ├── app_timer_init()
    │
@@ -96,9 +98,9 @@ btn_init()
 
 Для работы таймеров `btn` требуется LFCLK.
 
-Поэтому сначала вызывается `clock_init()`, затем
-`app_timer_init()`, и только после этого создаются таймеры
-`btn_hw` и `btn`.
+`clock_init()` инициализирует общий legacy clock driver, если он ещё
+не инициализирован, и запускает LFCLK. После этого вызывается
+`app_timer_init()`, и только затем создаются таймеры `btn_hw` и `btn`.
 
 ~~~ text
 LFCLK
