@@ -9,16 +9,14 @@
 #include "led_controller.h"
 
 // Tracks the pause between two consecutive LED sequences.
-typedef enum
-{
+typedef enum {
     INTER_LED_PAUSE_NONE,
     INTER_LED_PAUSE_WAITING,
     INTER_LED_PAUSE_PAUSED
 } inter_led_pause_state_t;
 
 // Coordinates LED selection, blink counts and pauses between LEDs.
-typedef struct
-{
+typedef struct {
     led_controller_t controller;
     const char *device_id;   // Device ID used to determine blink counts
     uint8_t led_idx;         // Current LED index
