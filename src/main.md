@@ -1,6 +1,6 @@
 # main
 
-main.c является точкой сборки приложения и верхним уровнем управления текущей прошивкой. Модуль не реализует алгоритмы работы кнопки, светодиодов, PWM, fade или последовательности напрямую. Его задача — создать и инициализировать экземпляр приложения, установить правильный порядок инициализации зависимостей, а затем постоянно обслуживать LED-последовательность и обрабатывать события кнопки.
+main.c является точкой сборки приложения и верхним уровнем управления текущей прошивкой. Модуль не реализует алгоритмы работы кнопки, светодиодов, PWM, fade, последовательности или логирования напрямую. Его задача — создать и инициализировать экземпляр приложения, установить правильный порядок инициализации зависимостей, а затем постоянно обслуживать LED-последовательность, логирование и обработку событий кнопки.
 
 Текущая архитектура является polling-приложением: main() не использует RTOS-потоки и не передаёт управление LED-последовательностью аппаратному обработчику прерываний. Главный цикл регулярно вызывает led_sequence_process(), а кнопочный модуль доставляет в главный цикл уже подтверждённые логические события через очередь.
 
@@ -68,11 +68,13 @@ flowchart TD
         LED_INIT["leds_init()"]
         SYSTICK_INIT["nrfx_systick_init()"]
         BTN_INIT["btn_init()"]
+        LOG_INIT["log_init()"]
         SEQ_INIT["led_sequence_init()"]
 
         LED_INIT --> SYSTICK_INIT
         SYSTICK_INIT --> BTN_INIT
-        BTN_INIT --> SEQ_INIT
+        BTN_INIT --> LOG_INIT
+        LOG_INIT --> SEQ_INIT
     end
 
     MAIN --> LED_INIT
@@ -97,6 +99,14 @@ flowchart TD
     end
 
     BTN_INIT --> BTN
+
+    subgraph LOGGING["Logging"]
+        LOG["log"]
+        USB["USB CDC ACM"]
+        LOG --> USB
+    end
+
+    LOG_INIT --> LOG
 
     subgraph LED_SEQUENCE["Верхний уровень LED"]
         SEQ["led_sequence"]
@@ -155,6 +165,7 @@ flowchart TD
     SYSTICK --> INTER
 
     MAIN -->|"main loop"| SEQ
+    MAIN -->|"log_process()"| LOG
     MAIN -->|"btn_event_take()"| BTN
     BTN -->|"DOUBLE_PRESS"| MAIN
     MAIN -->|"pause / resume"| SEQ
@@ -189,6 +200,9 @@ nrfx_systick_init()
     |
     v
 btn_init()
+    |
+    v
+log_init()
     |
     v
 led_sequence_init()
@@ -232,6 +246,8 @@ main регулярно передаёт sequence в:
 
 ~~~ c
 led_sequence_process(&sequence);
+
+log_process();
 ~~~
 
 led_sequence выбирает LED, определяет число циклов из DEVICE_ID, управляет межсветодиодной паузой и передаёт выполнение led_controller.
@@ -418,7 +434,31 @@ btn_hw_init() предполагает, что LFCLK и app_timer уже гот�
 
 ---
 
-# 4. led_sequence_init()
+# 4. log_init()
+
+После btn_init() инициализируется модуль логирования.
+
+Порядок выбран намеренно: USB backend использует уже подготовленную clock infrastructure, которой владеет btn.
+
+Внутри log_init():
+
+~~~ text
+log_init()
+    |
+    +--> NRF_LOG_INIT(NULL)
+    |
+    +--> NRF_LOG_DEFAULT_BACKENDS_INIT()
+              |
+              v
+       USB logging backend
+              |
+              v
+          USB CDC ACM
+~~~
+
+Модуль log скрывает от main детали Nordic logger и USB backend. Внешний код использует только log_init(), log_process() и макросы LOG_INFO(), LOG_WARNING() и LOG_ERROR().
+
+# 5. led_sequence_init()
 
 Последним инициализируется верхний LED-уровень.
 
@@ -535,7 +575,7 @@ while (true) {
 }
 ~~~
 
-Внутри каждой итерации выполняются два основных этапа:
+Внутри каждой итерации выполняются три основных этапа:
 
 ~~~ text
 +--------------------------------+
@@ -544,6 +584,9 @@ while (true) {
               |
               v
   led_sequence_process()
+              |
+              v
+       log_process()
               |
               v
   btn_event_take() until empty
@@ -555,7 +598,8 @@ while (true) {
 Порядок намеренный:
 
 1. сначала обслуживается LED-подсистема;
-2. затем обрабатываются все накопленные события кнопки.
+2. затем обслуживается USB backend и обрабатывается одна отложенная log-запись;
+3. затем обрабатываются все накопленные события кнопки.
 
 ---
 
@@ -1591,6 +1635,9 @@ Button timing:
 Ключевые правила:
 
 - main инициализирует SysTick ровно один раз;
+- main инициализирует log после btn_init(), чтобы USB backend использовал уже подготовленную clock infrastructure;
+- log_process() вызывается в каждом проходе main loop;
+- main не обращается напрямую к Nordic logger или USB CDC backend;
 - LED hardware готовится до инициализации soft_pwm;
 - кнопочная подсистема сама владеет LFCLK и app_timer;
 - main не обращается к нижним LED-модулям напрямую;
