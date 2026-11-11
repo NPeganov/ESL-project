@@ -4,7 +4,7 @@
 #include "app_error.h"
 #include "app_timer.h"
 #include "app_util_platform.h"
-#include "nrfx_clock.h"
+#include "nrf_drv_clock.h"
 
 #include "btn.h"
 #include "btn_hw.h"
@@ -38,7 +38,6 @@ static bool m_double_press_pending;
 
 static uint32_t m_first_release_tick;
 
-static void clock_event_handler(nrfx_clock_evt_type_t event);
 static void clock_init(void);
 static void event_queue_push(btn_event_t event);
 static void button_state_changed(bool pressed);
@@ -79,27 +78,15 @@ btn_event_t btn_event_take(void) {
     return event;
 }
 
-static void clock_event_handler(nrfx_clock_evt_type_t event) {
-    (void)event;
-}
-
 static void clock_init(void) {
-    nrfx_err_t err_code;
+    // Initialize the shared legacy clock driver if it is not initialized yet.
+    if (!nrf_drv_clock_init_check())
+        APP_ERROR_CHECK(nrf_drv_clock_init());
 
-    err_code = nrfx_clock_init(clock_event_handler);
+    // Keep LFCLK running for the button debounce timer.
+    nrf_drv_clock_lfclk_request(NULL);
 
-    if (err_code != NRFX_SUCCESS &&
-        err_code != NRFX_ERROR_ALREADY_INITIALIZED)
-        APP_ERROR_CHECK(err_code);
-
-    nrfx_clock_enable();
-
-    // Start LFCLK only if it is not already running.
-    if (!nrfx_clock_lfclk_is_running()) {
-        nrfx_clock_lfclk_start();
-
-        while (!nrfx_clock_lfclk_is_running());
-    }
+    while (!nrf_drv_clock_lfclk_is_running());
 }
 
 static void event_queue_push(btn_event_t event) {
@@ -167,7 +154,7 @@ static void button_state_changed(bool pressed) {
     m_first_release_tick = now;
 
     APP_ERROR_CHECK(app_timer_start(
-        m_double_press_timer,
+        &m_double_press_timer,
         APP_TIMER_TICKS(BTN_DOUBLE_PRESS_TIME_MS),
         NULL));
 }
