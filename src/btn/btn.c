@@ -154,7 +154,7 @@ static void button_state_changed(bool pressed) {
     m_first_release_tick = now;
 
     APP_ERROR_CHECK(app_timer_start(
-        &m_double_press_timer,
+        m_double_press_timer,
         APP_TIMER_TICKS(BTN_DOUBLE_PRESS_TIME_MS),
         NULL));
 }
