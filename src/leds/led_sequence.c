@@ -26,11 +26,6 @@ static void inter_led_pause_pause(led_sequence_t *sequence) {
     sequence->inter_led_pause_state = INTER_LED_PAUSE_PAUSED;
 }
 
-// Resume the inter-LED interval from the beginning.
-static void inter_led_pause_resume(led_sequence_t *sequence) {
-    inter_led_pause_start(sequence);
-}
-
 // Process the inter-LED interval.
 static bool inter_led_pause_process(led_sequence_t *sequence) {
     if (sequence->inter_led_pause_state != INTER_LED_PAUSE_WAITING)
@@ -130,7 +125,7 @@ void led_sequence_resume(led_sequence_t *sequence) {
     if (sequence == NULL || sequence->running) return;
 
     if (sequence->inter_led_pause_state == INTER_LED_PAUSE_PAUSED)
-        inter_led_pause_resume(sequence);
+        inter_led_pause_start(sequence);
     else if (sequence->prepared)
         led_controller_resume(&sequence->controller);
 
