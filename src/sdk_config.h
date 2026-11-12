@@ -3109,14 +3109,9 @@
 #define NRF_LOG_STR_FORMATTER_TIMESTAMP_FORMAT_ENABLED 1
 #endif
 
-// </h> 
-//==========================================================
-
-
 #ifndef NRFX_SYSTICK_ENABLED
 #define NRFX_SYSTICK_ENABLED 1
 #endif
-
 
 #ifndef NRFX_GPIOTE_ENABLED
 #define NRFX_GPIOTE_ENABLED 1
@@ -3185,6 +3180,29 @@
 #ifndef NRFX_CLOCK_CONFIG_IRQ_PRIORITY
 #define NRFX_CLOCK_CONFIG_IRQ_PRIORITY 6
 #endif
+
+#ifndef NRFX_POWER_CONFIG_IRQ_PRIORITY
+#define NRFX_POWER_CONFIG_IRQ_PRIORITY 6
+#endif
+
+#ifndef NRFX_POWER_CONFIG_DEFAULT_DCDCEN
+#define NRFX_POWER_CONFIG_DEFAULT_DCDCEN 0
+#endif
+
+#ifndef NRFX_POWER_CONFIG_DEFAULT_DCDCENHV
+#define NRFX_POWER_CONFIG_DEFAULT_DCDCENHV 0
+#endif
+
+#ifndef NRFX_USBD_CONFIG_IRQ_PRIORITY
+#define NRFX_USBD_CONFIG_IRQ_PRIORITY 6
+#endif
+
+#ifndef NRFX_USBD_CONFIG_DMASCHEDULER_ISO_BOOST
+#define NRFX_USBD_CONFIG_DMASCHEDULER_ISO_BOOST 1
+#endif
+
+// </h> 
+//==========================================================
 
 // <<< end of configuration section >>>
 #endif //SDK_CONFIG_H
