@@ -14,7 +14,13 @@ $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
 # Source files common to all targets
 SRC_FILES += \
   $(PROJ_DIR)/main.c \
-  $(PROJ_DIR)/lib/leds.c \
+  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_systick.c \
+  $(PROJ_DIR)/main.c \
+  $(PROJ_DIR)/leds/leds.c \
+  $(PROJ_DIR)/leds/soft_pwm.c \
+  $(PROJ_DIR)/leds/fade.c \
+  $(PROJ_DIR)/leds/led_controller.c \
+  $(PROJ_DIR)/leds/led_sequence.c \
   $(PROJ_DIR)/lib/btn.c \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52840.S \
   $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52840.c \

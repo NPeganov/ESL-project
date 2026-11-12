@@ -3112,6 +3112,11 @@
 // </h> 
 //==========================================================
 
+
+#ifndef NRFX_SYSTICK_ENABLED
+#define NRFX_SYSTICK_ENABLED 1
+#endif
+
 // <<< end of configuration section >>>
 #endif //SDK_CONFIG_H
 
