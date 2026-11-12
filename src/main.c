@@ -7,14 +7,12 @@
 #include "leds/led_sequence.h"
 #include "log/log.h"
 
-
 #define DEVICE_ID               "6609"
 
 #define PWM_PERIOD_US           1000
 #define FADE_DURATION_MS        600
 #define CYCLE_PAUSE_MS          500
 #define INTER_LED_PAUSE_MS      500
-
 
 static void system_init(led_sequence_t *sequence) {
     // Initialize LED GPIOs before any module that drives LED outputs.
@@ -37,7 +35,8 @@ static void system_init(led_sequence_t *sequence) {
             PWM_PERIOD_US,
             FADE_DURATION_MS,
             CYCLE_PAUSE_MS,
-            INTER_LED_PAUSE_MS)) while (true);
+            INTER_LED_PAUSE_MS)) 
+            while (true); // The app MUST NOT run with invalid initialzation params.
 }
 
 int main(void) {
