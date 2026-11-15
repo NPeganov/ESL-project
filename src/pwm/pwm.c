@@ -11,14 +11,14 @@
 // The upper limit is 2^15 - 1 because COUNTERTOP is a 15-bit field.
 #define PWM_COUNTERTOP_MIN 3
 #define PWM_COUNTERTOP_MAX 32767
+#define PWM_BASE_CLOCK_HZ 16000000
+#define PWM_CLOCK_DIVIDER_MAX 128
+#define PWM_FREQUENCY_MIN_HZ \
+    ((PWM_BASE_CLOCK_HZ / PWM_CLOCK_DIVIDER_MAX + PWM_COUNTERTOP_MAX - 1) / PWM_COUNTERTOP_MAX)
+#define PWM_FREQUENCY_MAX_HZ (PWM_BASE_CLOCK_HZ / PWM_COUNTERTOP_MIN)
 #define PWM_IRQ_PRIORITY 6
 #define PWM_UPDATE_INTERVAL_MS 10
 #define PWM_MILLISECONDS_PER_SECOND 1000
-
-typedef struct {
-    uint32_t frequency_hz;
-    nrf_pwm_clk_t clock;
-} pwm_clock_t;
 
 typedef struct {
     nrf_pwm_clk_t base_clock;
@@ -113,50 +113,34 @@ void pwm_set(pwm_channel_t channel, uint8_t duty) {
 }
 
 static void pwm_timing_calculate(uint32_t frequency_hz, pwm_timing_t *timing) {
-    static const pwm_clock_t clocks[] = {
-        { 16000000, NRF_PWM_CLK_16MHz },
-        { 8000000, NRF_PWM_CLK_8MHz },
-        { 4000000, NRF_PWM_CLK_4MHz },
-        { 2000000, NRF_PWM_CLK_2MHz },
-        { 1000000, NRF_PWM_CLK_1MHz },
-        { 500000, NRF_PWM_CLK_500kHz },
-        { 250000, NRF_PWM_CLK_250kHz },
-        { 125000, NRF_PWM_CLK_125kHz }
-    };
-
-    size_t const clock_count = sizeof(clocks) / sizeof(clocks[0]);
+    uint32_t clock_frequency_hz = PWM_BASE_CLOCK_HZ;
 
     ASSERT(timing != NULL);
-    ASSERT(frequency_hz != 0);
+    ASSERT(frequency_hz >= PWM_FREQUENCY_MIN_HZ &&
+           frequency_hz <= PWM_FREQUENCY_MAX_HZ);
 
     // Try clocks from fastest to slowest to get the highest available resolution.
-    for (size_t i = 0; i < clock_count; i++) {
+    for (nrf_pwm_clk_t base_clock = NRF_PWM_CLK_16MHz;
+         base_clock <= NRF_PWM_CLK_125kHz;
+         base_clock = (nrf_pwm_clk_t)(base_clock + 1)) {
         // COUNTERTOP is the number of PWM clock ticks in one PWM period.
         // Round to the nearest integer because COUNTERTOP must be a whole number.
         uint32_t top_value =
-            (clocks[i].frequency_hz + frequency_hz / 2) / frequency_hz;
+            (clock_frequency_hz + frequency_hz / 2) / frequency_hz;
 
-        if (top_value < PWM_COUNTERTOP_MIN || top_value > PWM_COUNTERTOP_MAX)
-            continue;
+        if (top_value >= PWM_COUNTERTOP_MIN && top_value <= PWM_COUNTERTOP_MAX) {
+            timing->base_clock = base_clock;
+            timing->top_value = (uint16_t)top_value;
 
-        timing->base_clock = clocks[i].clock;
-        timing->top_value = (uint16_t)top_value;
+            // Calculate the frequency produced by the selected clock and COUNTERTOP.
+            timing->actual_frequency_hz =
+                (clock_frequency_hz + top_value / 2) / top_value;
 
-        // Calculate the frequency produced by the selected clock and COUNTERTOP.
-        timing->actual_frequency_hz =
-            (clocks[i].frequency_hz + top_value / 2) / top_value;
+            return;
+        }
 
-        return;
+        clock_frequency_hz /= 2;
     }
-
-    ASSERT(0);
-
-    // Use the slowest clock and minimum COUNTERTOP as a safe fallback.
-    timing->base_clock = clocks[clock_count - 1].clock;
-    timing->top_value = PWM_COUNTERTOP_MIN;
-    timing->actual_frequency_hz =
-        (clocks[clock_count - 1].frequency_hz + PWM_COUNTERTOP_MIN / 2) /
-        PWM_COUNTERTOP_MIN;
 }
 
 static uint16_t pwm_channel_value(pwm_channel_t channel) {
