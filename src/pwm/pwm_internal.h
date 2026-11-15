@@ -1,11 +1,10 @@
 #ifndef _PWM_INTERNAL_H_
 #define _PWM_INTERNAL_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "nrfx_pwm.h"
-
-#include "pwm.h"
 
 // Timing values selected for the requested PWM frequency.
 typedef struct {
@@ -20,6 +19,6 @@ void pwm_sequence_update(
     nrf_pwm_values_individual_t *sequence,
     volatile uint8_t const *duty,
     uint16_t top_value,
-    uint16_t const *polarity_mask);
+    bool const *active_low);
 
 #endif
