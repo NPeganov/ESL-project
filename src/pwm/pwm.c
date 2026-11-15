@@ -21,12 +21,7 @@ static nrfx_pwm_t m_pwm = NRFX_PWM_INSTANCE(0);
 
 static pwm_polarity_t m_channel_polarity[PWM_CHANNEL_COUNT];
 static nrf_pwm_values_individual_t m_sequence;
-static nrf_pwm_sequence_t const m_pwm_sequence = {
-    .values.p_individual = &m_sequence,
-    .length = PWM_CHANNEL_COUNT,
-    .repeats = 0,
-    .end_delay = 0
-};
+static nrf_pwm_sequence_t m_pwm_sequence;
 
 static volatile uint8_t m_duty[PWM_CHANNEL_COUNT];
 static uint16_t m_top_value;
@@ -83,6 +78,11 @@ void pwm_init(pwm_config_t const *config) {
 
     nrfx_err_t err_code = nrfx_pwm_init(&m_pwm, &nrfx_config, pwm_event_handler);
     ASSERT(err_code == NRFX_SUCCESS);
+
+    m_pwm_sequence.values.p_individual = &m_sequence;
+    m_pwm_sequence.length = PWM_CHANNEL_COUNT;
+    m_pwm_sequence.repeats = 0;
+    m_pwm_sequence.end_delay = 0;
 
     // simple_playback uses the same sequence for SEQ0 and SEQ1.
     // Handle both end events as required by the driver API.
