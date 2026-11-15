@@ -83,6 +83,7 @@ void pwm_init(pwm_config_t const *config) {
 
     pwm_sequence_update();
 
+    // Keep the function call outside ASSERT because ASSERT may omit its expression.
     nrfx_err_t err_code = nrfx_pwm_init(&m_pwm, &nrfx_config, pwm_event_handler);
     ASSERT(err_code == NRFX_SUCCESS);
 
