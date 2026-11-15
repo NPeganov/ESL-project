@@ -8,8 +8,8 @@
 
 #include "pwm.h"
 
-// The nRF52840 PWM COUNTERTOP register accepts values from 3 to 32767.
-// The upper limit is 2^15 - 1 because COUNTERTOP is a 15-bit field.
+// The nRF52840 PWM period register accepts values from 3 to 32767.
+// The maximum value is 2^15 - 1 because the register field is 15 bits.
 #define PWM_COUNTERTOP_MIN 3
 #define PWM_COUNTERTOP_MAX 32767
 #define PWM_BASE_CLOCK_HZ 16000000
@@ -129,11 +129,11 @@ static bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing) {
         frequency_hz > PWM_FREQUENCY_MAX_HZ)
         return false;
 
-    // Select the fastest clock that allows COUNTERTOP to stay within its limits.
-    for (nrf_pwm_clk_t base_clock = NRF_PWM_CLK_16MHz;
-         base_clock <= NRF_PWM_CLK_125kHz;
-         base_clock = (nrf_pwm_clk_t)(base_clock + 1)) {
-        // Calculate the COUNTERTOP value, rounded to the nearest integer.
+    nrf_pwm_clk_t base_clock = NRF_PWM_CLK_16MHz;
+
+    // Select the fastest clock that keeps top_value within its limits.
+    while (base_clock <= NRF_PWM_CLK_125kHz) {
+        // Calculate top_value, rounded to the nearest integer.
         uint32_t top_value =
             (clock_frequency_hz + frequency_hz / 2) / frequency_hz;
 
@@ -148,6 +148,7 @@ static bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing) {
             return true;
         }
 
+        base_clock = (nrf_pwm_clk_t)(base_clock + 1);
         clock_frequency_hz /= 2;
     }
 
