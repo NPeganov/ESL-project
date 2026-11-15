@@ -20,6 +20,12 @@ typedef struct {
     nrf_pwm_clk_t clock;
 } pwm_clock_t;
 
+typedef struct {
+    nrf_pwm_clk_t base_clock;
+    uint16_t top_value;
+    uint32_t actual_frequency_hz;
+} pwm_timing_t;
+
 static nrfx_pwm_t m_pwm = NRFX_PWM_INSTANCE(0);
 
 static pwm_polarity_t m_channel_polarity[PWM_CHANNEL_COUNT];
@@ -31,17 +37,13 @@ static uint16_t m_top_value;
 static uint32_t m_update_interval;
 static uint32_t m_update_counter;
 
-static uint16_t pwm_top_value_calculate(
-    uint32_t frequency_hz,
-    nrf_pwm_clk_t *base_clock,
-    uint32_t *actual_frequency_hz);
+static void pwm_timing_calculate(uint32_t frequency_hz, pwm_timing_t *timing);
 static uint16_t pwm_channel_value(pwm_channel_t channel);
 static void pwm_sequence_update(void);
 static void pwm_event_handler(nrfx_pwm_evt_type_t event);
 
 void pwm_init(pwm_config_t const *config) {
-    nrf_pwm_clk_t base_clock;
-    uint32_t actual_frequency_hz;
+    pwm_timing_t timing;
     nrfx_pwm_config_t nrfx_config;
 
     ASSERT(config != NULL);
@@ -51,13 +53,11 @@ void pwm_init(pwm_config_t const *config) {
     nrfx_config.load_mode = NRF_PWM_LOAD_INDIVIDUAL;
     nrfx_config.step_mode = NRF_PWM_STEP_AUTO;
 
-    m_top_value = pwm_top_value_calculate(
-        config->frequency_hz,
-        &base_clock,
-        &actual_frequency_hz);
+    pwm_timing_calculate(config->frequency_hz, &timing);
 
-    nrfx_config.base_clock = base_clock;
-    nrfx_config.top_value = m_top_value;
+    m_top_value = timing.top_value;
+    nrfx_config.base_clock = timing.base_clock;
+    nrfx_config.top_value = timing.top_value;
 
     for (uint8_t i = 0; i < PWM_CHANNEL_COUNT; i++) {
         ASSERT(nrf_gpio_pin_present_check(config->channels[i].pin));
@@ -74,7 +74,7 @@ void pwm_init(pwm_config_t const *config) {
 
     // Convert the update interval from milliseconds to PWM periods.
     m_update_interval = (
-        actual_frequency_hz * PWM_UPDATE_INTERVAL_MS +
+        timing.actual_frequency_hz * PWM_UPDATE_INTERVAL_MS +
         PWM_MILLISECONDS_PER_SECOND / 2) / PWM_MILLISECONDS_PER_SECOND;
 
     // At least one PWM period must pass before the sequence can be updated.
@@ -112,10 +112,7 @@ void pwm_set(pwm_channel_t channel, uint8_t duty) {
     m_duty[channel] = duty;
 }
 
-static uint16_t pwm_top_value_calculate(
-    uint32_t frequency_hz,
-    nrf_pwm_clk_t *base_clock,
-    uint32_t *actual_frequency_hz) {
+static void pwm_timing_calculate(uint32_t frequency_hz, pwm_timing_t *timing) {
     static const pwm_clock_t clocks[] = {
         { 16000000, NRF_PWM_CLK_16MHz },
         { 8000000, NRF_PWM_CLK_8MHz },
@@ -127,25 +124,39 @@ static uint16_t pwm_top_value_calculate(
         { 125000, NRF_PWM_CLK_125kHz }
     };
 
-    // Select the fastest clock that keeps COUNTERTOP within its hardware limits.
-    ASSERT(frequency_hz >= 4);
-    ASSERT(frequency_hz <= 5333333);
+    size_t const clock_count = sizeof(clocks) / sizeof(clocks[0]);
 
-    for (uint8_t i = 0; i < sizeof(clocks) / sizeof(clocks[0]); i++) {
-        uint32_t top_value = (clocks[i].frequency_hz + frequency_hz / 2) / frequency_hz;
+    ASSERT(timing != NULL);
+    ASSERT(frequency_hz != 0);
+
+    // Try clocks from fastest to slowest to get the highest available resolution.
+    for (size_t i = 0; i < clock_count; i++) {
+        // COUNTERTOP is the number of PWM clock ticks in one PWM period.
+        // Round to the nearest integer because COUNTERTOP must be a whole number.
+        uint32_t top_value =
+            (clocks[i].frequency_hz + frequency_hz / 2) / frequency_hz;
 
         if (top_value < PWM_COUNTERTOP_MIN || top_value > PWM_COUNTERTOP_MAX)
             continue;
 
-        *base_clock = clocks[i].clock;
-        *actual_frequency_hz = (clocks[i].frequency_hz + top_value / 2) / top_value;
-        return (uint16_t)top_value;
+        timing->base_clock = clocks[i].clock;
+        timing->top_value = (uint16_t)top_value;
+
+        // Calculate the frequency produced by the selected clock and COUNTERTOP.
+        timing->actual_frequency_hz =
+            (clocks[i].frequency_hz + top_value / 2) / top_value;
+
+        return;
     }
 
     ASSERT(0);
-    *base_clock = NRF_PWM_CLK_125kHz;
-    *actual_frequency_hz = 125000 / PWM_COUNTERTOP_MIN;
-    return PWM_COUNTERTOP_MIN;
+
+    // Use the slowest clock and minimum COUNTERTOP as a safe fallback.
+    timing->base_clock = clocks[clock_count - 1].clock;
+    timing->top_value = PWM_COUNTERTOP_MIN;
+    timing->actual_frequency_hz =
+        (clocks[clock_count - 1].frequency_hz + PWM_COUNTERTOP_MIN / 2) /
+        PWM_COUNTERTOP_MIN;
 }
 
 static uint16_t pwm_channel_value(pwm_channel_t channel) {
