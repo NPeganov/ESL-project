@@ -32,7 +32,10 @@ typedef struct
     pwm_channel_config_t channels[PWM_CHANNEL_COUNT];
 } pwm_config_t;
 
+// Return false if the requested PWM frequency cannot be represented or the driver cannot be started.
 bool pwm_init(pwm_config_t const *config);
+
+// Set the duty cycle from 0 (off) to 255 (on).
 void pwm_set(pwm_channel_t channel, uint8_t duty);
 
 #endif
