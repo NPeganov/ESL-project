@@ -39,14 +39,14 @@ static void pwm_event_handler(nrfx_pwm_evt_type_t event);
 void pwm_init(pwm_config_t const *config) {
     nrf_pwm_clk_t base_clock;
     uint32_t actual_frequency_hz;
-    nrfx_pwm_config_t nrfx_config = {
-        .irq_priority = PWM_IRQ_PRIORITY,
-        .count_mode = NRF_PWM_MODE_UP,
-        .load_mode = NRF_PWM_LOAD_INDIVIDUAL,
-        .step_mode = NRF_PWM_STEP_AUTO
-    };
+    nrfx_pwm_config_t nrfx_config;
 
     ASSERT(config != NULL);
+
+    nrfx_config.irq_priority = PWM_IRQ_PRIORITY;
+    nrfx_config.count_mode = NRF_PWM_MODE_UP;
+    nrfx_config.load_mode = NRF_PWM_LOAD_INDIVIDUAL;
+    nrfx_config.step_mode = NRF_PWM_STEP_AUTO;
 
     m_top_value = pwm_top_value_calculate(
         config->frequency_hz,
