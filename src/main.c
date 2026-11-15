@@ -1,73 +1,32 @@
-#include <stdbool.h>
+#include <stdint.h>
 
 #include "nrfx_systick.h"
 
-#include "btn/btn.h"
 #include "leds/leds.h"
-#include "leds/led_sequence.h"
-#include "log/log.h"
-
-#define DEVICE_ID               "6609"
-
-#define PWM_PERIOD_US           1000
-#define FADE_DURATION_MS        600
-#define CYCLE_PAUSE_MS          500
-#define INTER_LED_PAUSE_MS      500
-
-static void system_init(led_sequence_t *sequence) {
-    // Initialize LED GPIOs before any module that drives LED outputs.
-    leds_init();
-
-    // Initialize SysTick before any module that uses it as a time base.
-    nrfx_systick_init();
-
-    // Initialize shared LFCLK and app_timer required by the button debounce timer.
-    // The clock driver is also reused by the USB logging backend.
-    btn_init();
-
-    // Initialize logging after btn_init() so the USB backend can reuse
-    // the already initialized clock infrastructure.
-    log_init();
-
-    if (!led_sequence_init(
-            sequence,
-            DEVICE_ID,
-            PWM_PERIOD_US,
-            FADE_DURATION_MS,
-            CYCLE_PAUSE_MS,
-            INTER_LED_PAUSE_MS)) 
-            while (true); // The app MUST NOT run with invalid initialzation params.
-}
+#include "pwm/pwm.h"
 
 int main(void) {
-    led_sequence_t sequence;
+    pwm_config_t pwm_config = {
+        .frequency_hz = 1000,
+        .channels = {
+            { .pin = LED_1, .polarity = PWM_POLARITY_ACTIVE_LOW },
+            { .pin = LED_2, .polarity = PWM_POLARITY_ACTIVE_LOW },
+            { .pin = LED_3, .polarity = PWM_POLARITY_ACTIVE_LOW },
+            { .pin = LED_4, .polarity = PWM_POLARITY_ACTIVE_LOW }
+        }
+    };
 
-    system_init(&sequence);
+    leds_init();
+    nrfx_systick_init();
 
-    while (true)
-    {
-        // Keep the LED sequence and software PWM serviced.
-        led_sequence_process(&sequence);
+    if (!pwm_init(&pwm_config))
+        while (1) nrfx_systick_delay_ms(1000);
 
-        // Process USB events and pending log messages.
-        log_process();
-
-        // Process all pending button events.
-        btn_event_t event;
-        while ((event = btn_event_take()) != BTN_EVENT_NONE)
-        {
-            if (event != BTN_EVENT_DOUBLE_PRESS)
-                continue;
-
-            // Toggle the LED sequence on every double press.
-            if (led_sequence_is_running(&sequence)) {
-                led_sequence_pause(&sequence);
-                LOG_INFO("LED sequence paused by double press");
-            }
-            else {
-                led_sequence_resume(&sequence);
-                LOG_INFO("LED sequence resumed by double press");
-            }
+    while (1) {
+        for (uint8_t i = 0; i < PWM_CHANNEL_COUNT; i++) {
+            pwm_set((pwm_channel_t)i, 255);
+            nrfx_systick_delay_ms(100);
+            pwm_set((pwm_channel_t)i, 0);
         }
     }
 }
