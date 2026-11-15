@@ -38,7 +38,7 @@ static uint16_t m_top_value;
 static uint32_t m_update_interval;
 static uint32_t m_update_counter;
 
-static bool pwm_timing_calculate(uint32_t frequency_hz, pwm_timing_t *timing);
+static bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing);
 static uint16_t pwm_channel_value(pwm_channel_t channel);
 static void pwm_sequence_update(void);
 static void pwm_event_handler(nrfx_pwm_evt_type_t event);
@@ -54,7 +54,7 @@ void pwm_init(pwm_config_t const *config) {
     nrfx_config.load_mode = NRF_PWM_LOAD_INDIVIDUAL;
     nrfx_config.step_mode = NRF_PWM_STEP_AUTO;
 
-    bool timing_valid = pwm_timing_calculate(config->frequency_hz, &timing);
+    bool timing_valid = pwm_timing_select(config->frequency_hz, &timing);
     ASSERT(timing_valid);
     if (!timing_valid)
         return;
@@ -116,7 +116,7 @@ void pwm_set(pwm_channel_t channel, uint8_t duty) {
     m_duty[channel] = duty;
 }
 
-static bool pwm_timing_calculate(uint32_t frequency_hz, pwm_timing_t *timing) {
+static bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing) {
     uint32_t clock_frequency_hz = PWM_BASE_CLOCK_HZ;
 
     ASSERT(timing != NULL);
@@ -129,12 +129,11 @@ static bool pwm_timing_calculate(uint32_t frequency_hz, pwm_timing_t *timing) {
         frequency_hz > PWM_FREQUENCY_MAX_HZ)
         return false;
 
-    // Try clocks from fastest to slowest to get the highest available resolution.
+    // Select the fastest clock that allows COUNTERTOP to stay within its limits.
     for (nrf_pwm_clk_t base_clock = NRF_PWM_CLK_16MHz;
          base_clock <= NRF_PWM_CLK_125kHz;
          base_clock = (nrf_pwm_clk_t)(base_clock + 1)) {
-        // COUNTERTOP is the number of PWM clock ticks in one PWM period.
-        // Round to the nearest integer because COUNTERTOP must be a whole number.
+        // Calculate the COUNTERTOP value, rounded to the nearest integer.
         uint32_t top_value =
             (clock_frequency_hz + frequency_hz / 2) / frequency_hz;
 
@@ -142,7 +141,7 @@ static bool pwm_timing_calculate(uint32_t frequency_hz, pwm_timing_t *timing) {
             timing->base_clock = base_clock;
             timing->top_value = (uint16_t)top_value;
 
-            // Calculate the frequency produced by the selected clock and COUNTERTOP.
+            // Calculate the actual frequency produced by the selected settings.
             timing->actual_frequency_hz =
                 (clock_frequency_hz + top_value / 2) / top_value;
 
