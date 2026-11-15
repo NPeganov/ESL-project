@@ -116,42 +116,45 @@ void pwm_set(pwm_channel_t channel, uint8_t duty) {
     m_duty[channel] = duty;
 }
 
+// Select the fastest PWM clock that can represent the requested frequency.
+// A faster clock allows a larger top_value and therefore finer duty-cycle steps.
+// Clock settings are ordered from fastest to slowest, with each step halving the clock.
 static bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing) {
-    uint32_t clock_frequency_hz = PWM_BASE_CLOCK_HZ;
-
     ASSERT(timing != NULL);
     if (timing == NULL)
         return false;
 
-    ASSERT(frequency_hz >= PWM_FREQUENCY_MIN_HZ &&
-           frequency_hz <= PWM_FREQUENCY_MAX_HZ);
+    // Reject frequencies that cannot be represented by any supported clock and top_value.
     if (frequency_hz < PWM_FREQUENCY_MIN_HZ ||
         frequency_hz > PWM_FREQUENCY_MAX_HZ)
         return false;
 
+    uint32_t clock_frequency_hz = PWM_BASE_CLOCK_HZ;
     nrf_pwm_clk_t base_clock = NRF_PWM_CLK_16MHz;
 
-    // Select the fastest clock that keeps top_value within its limits.
     while (base_clock <= NRF_PWM_CLK_125kHz) {
-        // Calculate top_value, rounded to the nearest integer.
+        // Round the required period count to the nearest integer.
         uint32_t top_value =
             (clock_frequency_hz + frequency_hz / 2) / frequency_hz;
 
+        // Use the first clock whose period count fits the hardware limits.
         if (top_value >= PWM_COUNTERTOP_MIN && top_value <= PWM_COUNTERTOP_MAX) {
             timing->base_clock = base_clock;
             timing->top_value = (uint16_t)top_value;
 
-            // Calculate the actual frequency produced by the selected settings.
+            // Store the frequency that these integer timing settings actually produce.
             timing->actual_frequency_hz =
                 (clock_frequency_hz + top_value / 2) / top_value;
 
             return true;
         }
 
+        // Try the next, half-speed clock to bring top_value into the supported range.
         base_clock = (nrf_pwm_clk_t)(base_clock + 1);
         clock_frequency_hz /= 2;
     }
 
+    // No supported clock produced a valid period count.
     return false;
 }
 
