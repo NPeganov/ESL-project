@@ -2,6 +2,7 @@
 #include <stdint.h>
 
 #include "nrf_assert.h"
+#include "nrf_gpio.h"
 #include "nrfx_pwm.h"
 
 #include "pwm.h"
@@ -57,7 +58,7 @@ void pwm_init(pwm_config_t const *config) {
     nrfx_config.top_value = m_top_value;
 
     for (uint8_t i = 0; i < PWM_CHANNEL_COUNT; i++) {
-        ASSERT(config->channels[i].pin < 48);
+        ASSERT(nrf_gpio_pin_present_check(config->channels[i].pin));
         ASSERT(config->channels[i].polarity == PWM_POLARITY_ACTIVE_HIGH ||
                config->channels[i].polarity == PWM_POLARITY_ACTIVE_LOW);
 
