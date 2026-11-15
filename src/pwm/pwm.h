@@ -7,37 +7,42 @@
 // The nRF PWM peripheral provides four output channels.
 #define PWM_CHANNEL_COUNT 4
 
-typedef enum
-{
+// Identifies one of the four PWM output channels.
+typedef enum {
     PWM_CHANNEL_0,
     PWM_CHANNEL_1,
     PWM_CHANNEL_2,
     PWM_CHANNEL_3
 } pwm_channel_t;
 
-typedef enum
-{
+// Defines which GPIO level is considered active for a channel.
+typedef enum {
     PWM_POLARITY_ACTIVE_HIGH,
     PWM_POLARITY_ACTIVE_LOW
 } pwm_polarity_t;
 
-typedef struct
-{
+// GPIO pin and active-level configuration for one PWM channel.
+typedef struct {
     uint8_t pin;
     pwm_polarity_t polarity;
 } pwm_channel_config_t;
 
-typedef struct
-{
+// Configuration shared by all channels of the PWM peripheral.
+typedef struct {
+    // Requested PWM frequency in hertz. The closest supported frequency is selected.
     uint32_t frequency_hz;
+
+    // Pin and polarity settings, indexed by pwm_channel_t.
     pwm_channel_config_t channels[PWM_CHANNEL_COUNT];
 } pwm_config_t;
 
-// Initialize the PWM peripheral.
-// Return false if the frequency is unsupported or the driver cannot be started.
+// Initialize the PWM peripheral and start all channels with zero duty.
+// Return false if the frequency is unsupported or the nrfx driver cannot be started.
+// The configuration pointer, pins, and polarity values must be valid.
 bool pwm_init(pwm_config_t const *config);
 
-// Set the duty cycle from 0 (off) to 255 (on), regardless of channel polarity.
+// Set a channel duty cycle from 0 (inactive) to 255 (active).
+// The duty value has the same meaning for active-high and active-low channels.
 void pwm_set(pwm_channel_t channel, uint8_t duty);
 
 #endif
