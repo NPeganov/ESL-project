@@ -120,10 +120,6 @@ void pwm_set(pwm_channel_t channel, uint8_t duty) {
 // A faster clock allows a larger top_value and therefore finer duty-cycle steps.
 // Clock settings are ordered from fastest to slowest, with each step halving the clock.
 static bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing) {
-    ASSERT(timing != NULL);
-    if (timing == NULL)
-        return false;
-
     // Reject frequencies that cannot be represented by any supported clock and top_value.
     if (frequency_hz < PWM_FREQUENCY_MIN_HZ ||
         frequency_hz > PWM_FREQUENCY_MAX_HZ)
