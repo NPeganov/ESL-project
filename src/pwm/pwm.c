@@ -20,6 +20,7 @@
 #define PWM_IRQ_PRIORITY 6
 #define PWM_UPDATE_INTERVAL_MS 10
 #define PWM_MILLISECONDS_PER_SECOND 1000
+#define PWM_VALUE_POLARITY_MASK 0x8000
 
 typedef struct {
     nrf_pwm_clk_t base_clock;
@@ -29,7 +30,7 @@ typedef struct {
 
 static nrfx_pwm_t m_pwm = NRFX_PWM_INSTANCE(0);
 
-static pwm_polarity_t m_channel_polarity[PWM_CHANNEL_COUNT];
+static uint16_t m_channel_polarity_mask[PWM_CHANNEL_COUNT];
 static nrf_pwm_values_individual_t m_sequence;
 static nrf_pwm_sequence_t m_pwm_sequence;
 
@@ -68,12 +69,14 @@ void pwm_init(pwm_config_t const *config) {
         ASSERT(config->channels[i].polarity == PWM_POLARITY_ACTIVE_HIGH ||
                config->channels[i].polarity == PWM_POLARITY_ACTIVE_LOW);
 
-        m_channel_polarity[i] = config->channels[i].polarity;
+        m_channel_polarity_mask[i] = 0;
         m_duty[i] = 0;
         nrfx_config.output_pins[i] = config->channels[i].pin;
 
-        if (m_channel_polarity[i] == PWM_POLARITY_ACTIVE_LOW)
+        if (config->channels[i].polarity == PWM_POLARITY_ACTIVE_LOW) {
+            m_channel_polarity_mask[i] = PWM_VALUE_POLARITY_MASK;
             nrfx_config.output_pins[i] |= NRFX_PWM_PIN_INVERTED;
+        }
     }
 
     // Convert the update interval from milliseconds to PWM periods.
@@ -155,13 +158,11 @@ static bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing) {
 }
 
 static uint16_t pwm_channel_value(pwm_channel_t channel) {
-    uint32_t active_ticks = ((uint32_t)m_duty[channel] * m_top_value + 127) / 255;
+    uint32_t active_ticks =
+        ((uint32_t)m_duty[channel] * m_top_value + UINT8_MAX / 2) / UINT8_MAX;
+
     uint16_t value = m_top_value - active_ticks;
-
-    if (m_channel_polarity[channel] == PWM_POLARITY_ACTIVE_LOW)
-        value |= 0x8000;
-
-    return value;
+    return value | m_channel_polarity_mask[channel];
 }
 
 static void pwm_sequence_update(void) {
