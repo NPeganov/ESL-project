@@ -63,13 +63,14 @@ void pwm_init(pwm_config_t const *config) {
 
     ASSERT(nrfx_pwm_init(&m_pwm, &nrfx_config, pwm_event_handler) == NRFX_SUCCESS);
 
-    // With playback_count=1, simple playback starts and loops sequence 1.
-    // Its END_SEQ1 event is the safe point for updating the sequence data.
+    // simple_playback uses the same sequence for SEQ0 and SEQ1.
+    // Handle both end events as required by the driver API.
     (void)nrfx_pwm_simple_playback(
         &m_pwm,
         &m_pwm_sequence,
         1,
         NRFX_PWM_FLAG_LOOP |
+        NRFX_PWM_FLAG_SIGNAL_END_SEQ0 |
         NRFX_PWM_FLAG_SIGNAL_END_SEQ1 |
         NRFX_PWM_FLAG_NO_EVT_FINISHED);
 }
@@ -140,6 +141,6 @@ static void pwm_sequence_update(void) {
 }
 
 static void pwm_event_handler(nrfx_pwm_evt_type_t event) {
-    if (event == NRFX_PWM_EVT_END_SEQ1)
+    if (event == NRFX_PWM_EVT_END_SEQ0 || event == NRFX_PWM_EVT_END_SEQ1)
         pwm_sequence_update();
 }
