@@ -62,7 +62,8 @@ void pwm_init(pwm_config_t const *config) {
     m_duty[PWM_CHANNEL_0] = 255;
     pwm_sequence_update();
 
-    ASSERT(nrfx_pwm_init(&m_pwm, &nrfx_config, NULL) == NRFX_SUCCESS);
+    nrfx_err_t err_code = nrfx_pwm_init(&m_pwm, &nrfx_config, NULL);
+    ASSERT(err_code == NRFX_SUCCESS);
 
     (void)nrfx_pwm_simple_playback(
         &m_pwm,
