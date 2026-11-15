@@ -9,6 +9,9 @@
 #include "pwm.h"
 #include "pwm_internal.h"
 
+// Bit 15 of a PWM sequence value selects the output polarity.
+#define PWM_VALUE_POLARITY_MASK 0x8000
+
 // Keep the PWM interrupt at the same priority as other application peripherals.
 #define PWM_IRQ_PRIORITY 6
 
