@@ -12,6 +12,8 @@
 #define PWM_COUNTERTOP_MIN 3
 #define PWM_COUNTERTOP_MAX 32767
 #define PWM_IRQ_PRIORITY 6
+#define PWM_UPDATE_INTERVAL_MS 10
+#define PWM_MILLISECONDS_PER_SECOND 1000
 
 typedef struct {
     uint32_t frequency_hz;
@@ -70,8 +72,12 @@ void pwm_init(pwm_config_t const *config) {
             nrfx_config.output_pins[i] |= NRFX_PWM_PIN_INVERTED;
     }
 
-    // Update the sequence every 10 ms.
-    m_update_interval = (actual_frequency_hz + 50) / 100;
+    // Convert the update interval from milliseconds to PWM periods.
+    m_update_interval = (
+        actual_frequency_hz * PWM_UPDATE_INTERVAL_MS +
+        PWM_MILLISECONDS_PER_SECOND / 2) / PWM_MILLISECONDS_PER_SECOND;
+
+    // At least one PWM period must pass before the sequence can be updated.
     if (m_update_interval == 0)
         m_update_interval = 1;
 
