@@ -40,11 +40,15 @@ static uint32_t m_update_interval;
 static uint32_t m_update_counter;
 
 static bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing);
+static void pwm_channels_configure(
+    pwm_config_t const *config,
+    nrfx_pwm_config_t *nrfx_config);
+static bool pwm_driver_start(nrfx_pwm_config_t const *config);
 static uint16_t pwm_channel_value(pwm_channel_t channel);
 static void pwm_sequence_update(void);
 static void pwm_event_handler(nrfx_pwm_evt_type_t event);
 
-void pwm_init(pwm_config_t const *config) {
+bool pwm_init(pwm_config_t const *config) {
     pwm_timing_t timing;
     nrfx_pwm_config_t nrfx_config;
 
@@ -55,29 +59,14 @@ void pwm_init(pwm_config_t const *config) {
     nrfx_config.load_mode = NRF_PWM_LOAD_INDIVIDUAL;
     nrfx_config.step_mode = NRF_PWM_STEP_AUTO;
 
-    bool timing_valid = pwm_timing_select(config->frequency_hz, &timing);
-    ASSERT(timing_valid);
-    if (!timing_valid)
-        return;
+    if (!pwm_timing_select(config->frequency_hz, &timing))
+        return false;
 
     m_top_value = timing.top_value;
     nrfx_config.base_clock = timing.base_clock;
     nrfx_config.top_value = timing.top_value;
 
-    for (uint8_t i = 0; i < PWM_CHANNEL_COUNT; i++) {
-        ASSERT(nrf_gpio_pin_present_check(config->channels[i].pin));
-        ASSERT(config->channels[i].polarity == PWM_POLARITY_ACTIVE_HIGH ||
-               config->channels[i].polarity == PWM_POLARITY_ACTIVE_LOW);
-
-        m_channel_polarity_mask[i] = 0;
-        m_duty[i] = 0;
-        nrfx_config.output_pins[i] = config->channels[i].pin;
-
-        if (config->channels[i].polarity == PWM_POLARITY_ACTIVE_LOW) {
-            m_channel_polarity_mask[i] = PWM_VALUE_POLARITY_MASK;
-            nrfx_config.output_pins[i] |= NRFX_PWM_PIN_INVERTED;
-        }
-    }
+    pwm_channels_configure(config, &nrfx_config);
 
     // Convert the update interval from milliseconds to PWM periods.
     m_update_interval = (
@@ -90,27 +79,7 @@ void pwm_init(pwm_config_t const *config) {
 
     pwm_sequence_update();
 
-    // Keep the function call outside ASSERT because ASSERT may omit its expression.
-    nrfx_err_t err_code = nrfx_pwm_init(&m_pwm, &nrfx_config, pwm_event_handler);
-    ASSERT(err_code == NRFX_SUCCESS);
-
-    m_pwm_sequence.values.p_individual = &m_sequence;
-    m_pwm_sequence.length = PWM_CHANNEL_COUNT;
-    m_pwm_sequence.repeats = 0;
-    m_pwm_sequence.end_delay = 0;
-
-    // simple_playback uses the same sequence for SEQ0 and SEQ1.
-    // Handle both end events as required by the driver API.
-    // Keep the function call outside ASSERT because ASSERT may omit its expression.
-    err_code = nrfx_pwm_simple_playback(
-        &m_pwm,
-        &m_pwm_sequence,
-        1,
-        NRFX_PWM_FLAG_LOOP |
-        NRFX_PWM_FLAG_SIGNAL_END_SEQ0 |
-        NRFX_PWM_FLAG_SIGNAL_END_SEQ1 |
-        NRFX_PWM_FLAG_NO_EVT_FINISHED);
-    ASSERT(err_code == NRFX_SUCCESS);
+    return pwm_driver_start(&nrfx_config);
 }
 
 void pwm_set(pwm_channel_t channel, uint8_t duty) {
@@ -155,6 +124,52 @@ static bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing) {
 
     // No supported clock produced a valid period count.
     return false;
+}
+
+static void pwm_channels_configure(
+    pwm_config_t const *config,
+    nrfx_pwm_config_t *nrfx_config) {
+
+    for (uint8_t i = 0; i < PWM_CHANNEL_COUNT; i++) {
+        ASSERT(nrf_gpio_pin_present_check(config->channels[i].pin));
+        ASSERT(config->channels[i].polarity == PWM_POLARITY_ACTIVE_HIGH ||
+               config->channels[i].polarity == PWM_POLARITY_ACTIVE_LOW);
+
+        m_channel_polarity_mask[i] = 0;
+        m_duty[i] = 0;
+        nrfx_config->output_pins[i] = config->channels[i].pin;
+
+        if (config->channels[i].polarity == PWM_POLARITY_ACTIVE_LOW) {
+            m_channel_polarity_mask[i] = PWM_VALUE_POLARITY_MASK;
+            nrfx_config->output_pins[i] |= NRFX_PWM_PIN_INVERTED;
+        }
+    }
+}
+
+static bool pwm_driver_start(nrfx_pwm_config_t const *config) {
+    if (nrfx_pwm_init(&m_pwm, config, pwm_event_handler) != NRFX_SUCCESS)
+        return false;
+
+    m_pwm_sequence.values.p_individual = &m_sequence;
+    m_pwm_sequence.length = PWM_CHANNEL_COUNT;
+    m_pwm_sequence.repeats = 0;
+    m_pwm_sequence.end_delay = 0;
+
+    // simple_playback uses the same sequence for SEQ0 and SEQ1.
+    // Handle both end events as required by the driver API.
+    if (nrfx_pwm_simple_playback(
+            &m_pwm,
+            &m_pwm_sequence,
+            1,
+            NRFX_PWM_FLAG_LOOP |
+            NRFX_PWM_FLAG_SIGNAL_END_SEQ0 |
+            NRFX_PWM_FLAG_SIGNAL_END_SEQ1 |
+            NRFX_PWM_FLAG_NO_EVT_FINISHED) != NRFX_SUCCESS) {
+        nrfx_pwm_uninit(&m_pwm);
+        return false;
+    }
+
+    return true;
 }
 
 static uint16_t pwm_channel_value(pwm_channel_t channel) {

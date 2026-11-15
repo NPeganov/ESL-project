@@ -1,6 +1,7 @@
 #ifndef _PWM_H_
 #define _PWM_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #define PWM_CHANNEL_COUNT 4
@@ -31,7 +32,7 @@ typedef struct
     pwm_channel_config_t channels[PWM_CHANNEL_COUNT];
 } pwm_config_t;
 
-void pwm_init(pwm_config_t const *config);
+bool pwm_init(pwm_config_t const *config);
 void pwm_set(pwm_channel_t channel, uint8_t duty);
 
 #endif
