@@ -94,7 +94,8 @@ void pwm_init(pwm_config_t const *config) {
 
     // simple_playback uses the same sequence for SEQ0 and SEQ1.
     // Handle both end events as required by the driver API.
-    (void)nrfx_pwm_simple_playback(
+    // Keep the function call outside ASSERT because ASSERT may omit its expression.
+    err_code = nrfx_pwm_simple_playback(
         &m_pwm,
         &m_pwm_sequence,
         1,
@@ -102,6 +103,7 @@ void pwm_init(pwm_config_t const *config) {
         NRFX_PWM_FLAG_SIGNAL_END_SEQ0 |
         NRFX_PWM_FLAG_SIGNAL_END_SEQ1 |
         NRFX_PWM_FLAG_NO_EVT_FINISHED);
+    ASSERT(err_code == NRFX_SUCCESS);
 }
 
 void pwm_set(pwm_channel_t channel, uint8_t duty) {
