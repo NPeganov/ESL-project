@@ -23,10 +23,13 @@ static nrf_pwm_sequence_t const m_pwm_sequence = {
 
 static volatile uint8_t m_duty[PWM_CHANNEL_COUNT];
 static uint16_t m_top_value;
+static uint32_t m_update_interval;
+static uint32_t m_update_counter;
 
 static uint16_t pwm_top_value_calculate(uint32_t frequency_hz, nrf_pwm_clk_t *base_clock);
 static uint16_t pwm_channel_value(pwm_channel_t channel);
 static void pwm_sequence_update(void);
+static void pwm_event_handler(nrfx_pwm_evt_type_t event);
 
 void pwm_init(pwm_config_t const *config) {
     nrf_pwm_clk_t base_clock;
@@ -58,18 +61,26 @@ void pwm_init(pwm_config_t const *config) {
             nrfx_config.output_pins[i] |= NRFX_PWM_PIN_INVERTED;
     }
 
-    // Diagnostic: keep LED0 fully on without sequence-end interrupts.
-    m_duty[PWM_CHANNEL_0] = 255;
+    // Update the sequence every 10 ms.
+    m_update_interval = (m_config.frequency_hz + 50) / 100;
+    if (m_update_interval == 0)
+        m_update_interval = 1;
+
     pwm_sequence_update();
 
-    nrfx_err_t err_code = nrfx_pwm_init(&m_pwm, &nrfx_config, NULL);
+    nrfx_err_t err_code = nrfx_pwm_init(&m_pwm, &nrfx_config, pwm_event_handler);
     ASSERT(err_code == NRFX_SUCCESS);
 
+    // simple_playback uses the same sequence for SEQ0 and SEQ1.
+    // Handle both end events as required by the driver API.
     (void)nrfx_pwm_simple_playback(
         &m_pwm,
         &m_pwm_sequence,
         1,
-        NRFX_PWM_FLAG_LOOP | NRFX_PWM_FLAG_NO_EVT_FINISHED);
+        NRFX_PWM_FLAG_LOOP |
+        NRFX_PWM_FLAG_SIGNAL_END_SEQ0 |
+        NRFX_PWM_FLAG_SIGNAL_END_SEQ1 |
+        NRFX_PWM_FLAG_NO_EVT_FINISHED);
 }
 
 void pwm_set(pwm_channel_t channel, uint8_t duty) {
@@ -135,4 +146,15 @@ static void pwm_sequence_update(void) {
     m_sequence.channel_1 = pwm_channel_value(PWM_CHANNEL_1);
     m_sequence.channel_2 = pwm_channel_value(PWM_CHANNEL_2);
     m_sequence.channel_3 = pwm_channel_value(PWM_CHANNEL_3);
+}
+
+static void pwm_event_handler(nrfx_pwm_evt_type_t event) {
+    if (event != NRFX_PWM_EVT_END_SEQ0 && event != NRFX_PWM_EVT_END_SEQ1)
+        return;
+
+    if (++m_update_counter < m_update_interval)
+        return;
+
+    m_update_counter = 0;
+    pwm_sequence_update();
 }
