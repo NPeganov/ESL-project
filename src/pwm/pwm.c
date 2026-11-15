@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -37,7 +38,7 @@ static uint16_t m_top_value;
 static uint32_t m_update_interval;
 static uint32_t m_update_counter;
 
-static void pwm_timing_calculate(uint32_t frequency_hz, pwm_timing_t *timing);
+static bool pwm_timing_calculate(uint32_t frequency_hz, pwm_timing_t *timing);
 static uint16_t pwm_channel_value(pwm_channel_t channel);
 static void pwm_sequence_update(void);
 static void pwm_event_handler(nrfx_pwm_evt_type_t event);
@@ -53,7 +54,10 @@ void pwm_init(pwm_config_t const *config) {
     nrfx_config.load_mode = NRF_PWM_LOAD_INDIVIDUAL;
     nrfx_config.step_mode = NRF_PWM_STEP_AUTO;
 
-    pwm_timing_calculate(config->frequency_hz, &timing);
+    bool timing_valid = pwm_timing_calculate(config->frequency_hz, &timing);
+    ASSERT(timing_valid);
+    if (!timing_valid)
+        return;
 
     m_top_value = timing.top_value;
     nrfx_config.base_clock = timing.base_clock;
@@ -112,12 +116,18 @@ void pwm_set(pwm_channel_t channel, uint8_t duty) {
     m_duty[channel] = duty;
 }
 
-static void pwm_timing_calculate(uint32_t frequency_hz, pwm_timing_t *timing) {
+static bool pwm_timing_calculate(uint32_t frequency_hz, pwm_timing_t *timing) {
     uint32_t clock_frequency_hz = PWM_BASE_CLOCK_HZ;
 
     ASSERT(timing != NULL);
+    if (timing == NULL)
+        return false;
+
     ASSERT(frequency_hz >= PWM_FREQUENCY_MIN_HZ &&
            frequency_hz <= PWM_FREQUENCY_MAX_HZ);
+    if (frequency_hz < PWM_FREQUENCY_MIN_HZ ||
+        frequency_hz > PWM_FREQUENCY_MAX_HZ)
+        return false;
 
     // Try clocks from fastest to slowest to get the highest available resolution.
     for (nrf_pwm_clk_t base_clock = NRF_PWM_CLK_16MHz;
@@ -136,11 +146,13 @@ static void pwm_timing_calculate(uint32_t frequency_hz, pwm_timing_t *timing) {
             timing->actual_frequency_hz =
                 (clock_frequency_hz + top_value / 2) / top_value;
 
-            return;
+            return true;
         }
 
         clock_frequency_hz /= 2;
     }
+
+    return false;
 }
 
 static uint16_t pwm_channel_value(pwm_channel_t channel) {
