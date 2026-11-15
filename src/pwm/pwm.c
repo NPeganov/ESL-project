@@ -9,39 +9,20 @@
 #include "pwm.h"
 #include "pwm_internal.h"
 
-// Bit 15 of a PWM sequence value selects the output polarity.
-#define PWM_VALUE_POLARITY_MASK 0x8000
-
-// Keep the PWM interrupt at the same priority as other application peripherals.
+// PWM interrupt priority, matching the other application peripherals.
 #define PWM_IRQ_PRIORITY 6
 
-// Recalculate the output sequence every 10 ms.
+// Update the output sequence every 10 ms.
 #define PWM_UPDATE_INTERVAL_MS 10
 #define PWM_MILLISECONDS_PER_SECOND 1000
 
-// Hardware PWM instance used by this module.
-static nrfx_pwm_t m_pwm = NRFX_PWM_INSTANCE(0);
-
-// Per-channel polarity bits added to the PWM sequence values.
-static uint16_t m_channel_polarity_mask[PWM_CHANNEL_COUNT];
-
-// Buffer containing the compare values for all four PWM channels.
-static nrf_pwm_values_individual_t m_sequence;
-
-// Sequence descriptor passed to the nrfx PWM driver.
-static nrf_pwm_sequence_t m_pwm_sequence;
-
-// Duty values are written by pwm_set() and read by the PWM interrupt handler.
-static volatile uint8_t m_duty[PWM_CHANNEL_COUNT];
-
-// Selected PWM period count, shared by all channels.
-static uint16_t m_top_value;
-
-// Number of PWM periods between sequence updates.
-static uint32_t m_update_interval;
-
-// PWM periods elapsed since the last sequence update.
-static uint32_t m_update_counter;
+static nrfx_pwm_t m_pwm = NRFX_PWM_INSTANCE(0); // Hardware PWM instance.
+static bool m_channel_active_low[PWM_CHANNEL_COUNT]; // Output polarity of each channel.
+static nrf_pwm_values_individual_t m_sequence; // Persistent buffer read by the PWM peripheral.
+static volatile uint8_t m_duty[PWM_CHANNEL_COUNT]; // Current duty values set by pwm_set().
+static uint16_t m_top_value; // Selected PWM period count, shared by all channels.
+static uint32_t m_update_interval; // PWM periods between sequence updates.
+static uint32_t m_update_counter; // PWM periods elapsed since the last update.
 
 // Validate channel settings and prepare the nrfx output pin configuration.
 static void pwm_channels_configure(
@@ -89,7 +70,7 @@ bool pwm_init(pwm_config_t const *config) {
         m_update_interval = 1;
 
     // Prepare the initial sequence before starting hardware playback.
-    pwm_sequence_update(&m_sequence, m_duty, m_top_value, m_channel_polarity_mask);
+    pwm_sequence_update(&m_sequence, m_duty, m_top_value, m_channel_active_low);
 
     return pwm_driver_start(&nrfx_config);
 }
@@ -110,17 +91,15 @@ static void pwm_channels_configure(
         ASSERT(config->channels[i].polarity == PWM_POLARITY_ACTIVE_HIGH ||
                config->channels[i].polarity == PWM_POLARITY_ACTIVE_LOW);
 
-        // Start every channel with zero duty and no polarity bit.
-        m_channel_polarity_mask[i] = 0;
+        // Initialize each channel with zero duty and its configured polarity.
         m_duty[i] = 0;
+        m_channel_active_low[i] =
+            config->channels[i].polarity == PWM_POLARITY_ACTIVE_LOW;
 
         // Assign the GPIO pin to the corresponding PWM output.
         nrfx_config->output_pins[i] = config->channels[i].pin;
 
-        if (config->channels[i].polarity == PWM_POLARITY_ACTIVE_LOW) {
-            // Select falling-edge sequence polarity for an active-low output.
-            m_channel_polarity_mask[i] = PWM_VALUE_POLARITY_MASK;
-
+        if (m_channel_active_low[i]) {
             // Keep the GPIO idle level high while the PWM peripheral is inactive.
             nrfx_config->output_pins[i] |= NRFX_PWM_PIN_INVERTED;
         }
@@ -128,22 +107,24 @@ static void pwm_channels_configure(
 }
 
 static bool pwm_driver_start(nrfx_pwm_config_t const *config) {
+    nrf_pwm_sequence_t sequence;
+
     // Initialize the nrfx driver before configuring and starting playback.
     if (nrfx_pwm_init(&m_pwm, config, pwm_event_handler) != NRFX_SUCCESS)
         return false;
 
-    m_pwm_sequence.values.p_individual = &m_sequence;
+    sequence.values.p_individual = &m_sequence;
 
     // Individual load mode requires four 16-bit values, one for each channel.
-    m_pwm_sequence.length = PWM_CHANNEL_COUNT;
-    m_pwm_sequence.repeats = 0;
-    m_pwm_sequence.end_delay = 0;
+    sequence.length = PWM_CHANNEL_COUNT;
+    sequence.repeats = 0;
+    sequence.end_delay = 0;
 
     // simple_playback assigns the same sequence to SEQ0 and SEQ1.
     // Both end events must be enabled and handled for looping playback.
     if (nrfx_pwm_simple_playback(
             &m_pwm,
-            &m_pwm_sequence,
+            &sequence,
             1,
             NRFX_PWM_FLAG_LOOP |
             NRFX_PWM_FLAG_SIGNAL_END_SEQ0 |
@@ -168,5 +149,5 @@ static void pwm_event_handler(nrfx_pwm_evt_type_t event) {
 
     // Reset the interval counter and update the sequence buffer.
     m_update_counter = 0;
-    pwm_sequence_update(&m_sequence, m_duty, m_top_value, m_channel_polarity_mask);
+    pwm_sequence_update(&m_sequence, m_duty, m_top_value, m_channel_active_low);
 }
