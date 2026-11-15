@@ -23,8 +23,8 @@
 // Maximum frequency uses the fastest clock and smallest supported period count.
 #define PWM_FREQUENCY_MAX_HZ (PWM_BASE_CLOCK_HZ / PWM_TOP_VALUE_MIN)
 
-// Select the fastest supported PWM clock that can represent the requested frequency.
-// A faster clock permits a larger period count and finer duty-cycle resolution.
+// Select the fastest clock that produces a valid period count.
+// A faster clock provides better duty-cycle resolution.
 // Clock settings are ordered from fastest to slowest.
 bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing) {
     // Reject frequencies outside the range supported by all clock and period settings.

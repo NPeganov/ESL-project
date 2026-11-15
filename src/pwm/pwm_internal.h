@@ -18,13 +18,12 @@ typedef struct {
     uint32_t actual_frequency_hz;
 } pwm_timing_t;
 
-// Select the fastest supported base clock that can represent the requested frequency.
-// Return false when no supported clock and period count can produce that frequency.
+// Select PWM clock and period settings for the requested frequency.
+// Return false if the requested frequency is outside the supported range.
 bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing);
 
-// Recalculate all four sequence values from the current channel duty and polarity settings.
-// The sequence buffer is written by the CPU and read by the PWM peripheral.
-// The duty array may be updated asynchronously by pwm_set().
+// Update the PWM sequence buffer using the current duty and polarity settings.
+// The duty values may be changed asynchronously by pwm_set().
 void pwm_sequence_update(
     nrf_pwm_values_individual_t *sequence,
     volatile uint8_t const *duty,
