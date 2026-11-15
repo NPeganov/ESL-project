@@ -122,20 +122,15 @@ static bool pwm_driver_start(nrfx_pwm_config_t const *config) {
     sequence.repeats = 0;
     sequence.end_delay = 0;
 
-    // simple_playback assigns this sequence to both hardware sequence slots.
-    // Enable both end events so the buffer can be safely updated during looping playback.
-    if (nrfx_pwm_simple_playback(
-            &m_pwm,
-            &sequence,
-            1,
-            NRFX_PWM_FLAG_LOOP |
-            NRFX_PWM_FLAG_SIGNAL_END_SEQ0 |
-            NRFX_PWM_FLAG_SIGNAL_END_SEQ1 |
-            NRFX_PWM_FLAG_NO_EVT_FINISHED) != NRFX_SUCCESS) {
-        // Release the driver if continuous playback could not be started.
-        nrfx_pwm_uninit(&m_pwm);
-        return false;
-    }
+    // simple_playback starts continuous playback of the sequence buffer.
+    nrfx_pwm_simple_playback(
+        &m_pwm,
+        &sequence,
+        1,
+        NRFX_PWM_FLAG_LOOP |
+        NRFX_PWM_FLAG_SIGNAL_END_SEQ0 |
+        NRFX_PWM_FLAG_SIGNAL_END_SEQ1 |
+        NRFX_PWM_FLAG_NO_EVT_FINISHED);
 
     return true;
 }
