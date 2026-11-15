@@ -8,15 +8,15 @@
 
 #include "pwm.h"
 
-// The nRF52840 PWM period register accepts values from 3 to 32767.
-// The maximum value is 2^15 - 1 because the register field is 15 bits.
-#define PWM_COUNTERTOP_MIN 3
-#define PWM_COUNTERTOP_MAX 32767
+// The PWM top_value range is 3 to 32767.
+// The maximum value is limited by its 15-bit field.
+#define PWM_TOP_VALUE_MIN 3
+#define PWM_TOP_VALUE_MAX 32767
 #define PWM_BASE_CLOCK_HZ 16000000
 #define PWM_CLOCK_DIVIDER_MAX 128
 #define PWM_FREQUENCY_MIN_HZ \
-    ((PWM_BASE_CLOCK_HZ / PWM_CLOCK_DIVIDER_MAX + PWM_COUNTERTOP_MAX - 1) / PWM_COUNTERTOP_MAX)
-#define PWM_FREQUENCY_MAX_HZ (PWM_BASE_CLOCK_HZ / PWM_COUNTERTOP_MIN)
+    ((PWM_BASE_CLOCK_HZ / PWM_CLOCK_DIVIDER_MAX + PWM_TOP_VALUE_MAX - 1) / PWM_TOP_VALUE_MAX)
+#define PWM_FREQUENCY_MAX_HZ (PWM_BASE_CLOCK_HZ / PWM_TOP_VALUE_MIN)
 #define PWM_IRQ_PRIORITY 6
 #define PWM_UPDATE_INTERVAL_MS 10
 #define PWM_MILLISECONDS_PER_SECOND 1000
@@ -43,9 +43,9 @@ static bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing);
 static void pwm_channels_configure(
     pwm_config_t const *config,
     nrfx_pwm_config_t *nrfx_config);
-static bool pwm_driver_start(nrfx_pwm_config_t const *config);
 static uint16_t pwm_channel_value(pwm_channel_t channel);
 static void pwm_sequence_update(void);
+static bool pwm_driver_start(nrfx_pwm_config_t const *config);
 static void pwm_event_handler(nrfx_pwm_evt_type_t event);
 
 bool pwm_init(pwm_config_t const *config) {
@@ -73,7 +73,7 @@ bool pwm_init(pwm_config_t const *config) {
         timing.actual_frequency_hz * PWM_UPDATE_INTERVAL_MS +
         PWM_MILLISECONDS_PER_SECOND / 2) / PWM_MILLISECONDS_PER_SECOND;
 
-    // At least one PWM period must pass before the sequence can be updated.
+    // Update the sequence at most once per PWM period.
     if (m_update_interval == 0)
         m_update_interval = 1;
 
@@ -90,7 +90,7 @@ void pwm_set(pwm_channel_t channel, uint8_t duty) {
 
 // Select the fastest PWM clock that can represent the requested frequency.
 // A faster clock allows a larger top_value and therefore finer duty-cycle steps.
-// Clock settings are ordered from fastest to slowest, with each step halving the clock.
+// Clock settings are ordered from fastest to slowest.
 static bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing) {
     // Reject frequencies that cannot be represented by any supported clock and top_value.
     if (frequency_hz < PWM_FREQUENCY_MIN_HZ ||
@@ -106,7 +106,7 @@ static bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing) {
             (clock_frequency_hz + frequency_hz / 2) / frequency_hz;
 
         // Use the first clock whose period count fits the hardware limits.
-        if (top_value >= PWM_COUNTERTOP_MIN && top_value <= PWM_COUNTERTOP_MAX) {
+        if (top_value >= PWM_TOP_VALUE_MIN && top_value <= PWM_TOP_VALUE_MAX) {
             timing->base_clock = base_clock;
             timing->top_value = (uint16_t)top_value;
 
@@ -117,7 +117,7 @@ static bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing) {
             return true;
         }
 
-        // Try the next, half-speed clock to bring top_value into the supported range.
+        // Try the next slower clock.
         base_clock = (nrf_pwm_clk_t)(base_clock + 1);
         clock_frequency_hz /= 2;
     }
@@ -146,6 +146,21 @@ static void pwm_channels_configure(
     }
 }
 
+static uint16_t pwm_channel_value(pwm_channel_t channel) {
+    uint32_t active_ticks =
+        ((uint32_t)m_duty[channel] * m_top_value + UINT8_MAX / 2) / UINT8_MAX;
+
+    uint16_t value = m_top_value - active_ticks;
+    return value | m_channel_polarity_mask[channel];
+}
+
+static void pwm_sequence_update(void) {
+    m_sequence.channel_0 = pwm_channel_value(PWM_CHANNEL_0);
+    m_sequence.channel_1 = pwm_channel_value(PWM_CHANNEL_1);
+    m_sequence.channel_2 = pwm_channel_value(PWM_CHANNEL_2);
+    m_sequence.channel_3 = pwm_channel_value(PWM_CHANNEL_3);
+}
+
 static bool pwm_driver_start(nrfx_pwm_config_t const *config) {
     if (nrfx_pwm_init(&m_pwm, config, pwm_event_handler) != NRFX_SUCCESS)
         return false;
@@ -155,7 +170,7 @@ static bool pwm_driver_start(nrfx_pwm_config_t const *config) {
     m_pwm_sequence.repeats = 0;
     m_pwm_sequence.end_delay = 0;
 
-    // simple_playback uses the same sequence for SEQ0 and SEQ1.
+    // simple_playback assigns the same sequence to SEQ0 and SEQ1.
     // Handle both end events as required by the driver API.
     if (nrfx_pwm_simple_playback(
             &m_pwm,
@@ -170,21 +185,6 @@ static bool pwm_driver_start(nrfx_pwm_config_t const *config) {
     }
 
     return true;
-}
-
-static uint16_t pwm_channel_value(pwm_channel_t channel) {
-    uint32_t active_ticks =
-        ((uint32_t)m_duty[channel] * m_top_value + UINT8_MAX / 2) / UINT8_MAX;
-
-    uint16_t value = m_top_value - active_ticks;
-    return value | m_channel_polarity_mask[channel];
-}
-
-static void pwm_sequence_update(void) {
-    m_sequence.channel_0 = pwm_channel_value(PWM_CHANNEL_0);
-    m_sequence.channel_1 = pwm_channel_value(PWM_CHANNEL_1);
-    m_sequence.channel_2 = pwm_channel_value(PWM_CHANNEL_2);
-    m_sequence.channel_3 = pwm_channel_value(PWM_CHANNEL_3);
 }
 
 static void pwm_event_handler(nrfx_pwm_evt_type_t event) {
