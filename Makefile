@@ -34,6 +34,7 @@ SRC_FILES += \
   $(SDK_ROOT)/components/libraries/strerror/nrf_strerror.c \
   $(PROJ_DIR)/main.c \
   $(PROJ_DIR)/pwm/pwm.c \
+  $(PROJ_DIR)/pwm/pwm_internal.c \
   $(PROJ_DIR)/leds/leds.c \
   $(PROJ_DIR)/leds/soft_pwm.c \
   $(PROJ_DIR)/leds/fade.c \
