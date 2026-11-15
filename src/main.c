@@ -19,6 +19,11 @@ int main(void) {
     nrfx_systick_init();
     pwm_init(&pwm_config);
 
+    // LED0 starts fully on. If sequence-end interrupts work, this turns it off.
+    nrfx_systick_delay_ms(100);
+    pwm_set(PWM_CHANNEL_0, 0);
+    nrfx_systick_delay_ms(100);
+
     while (1) {
         // Fade LED0 up and down to verify hardware PWM.
         for (uint16_t duty = 0; duty <= 255; duty++) {
