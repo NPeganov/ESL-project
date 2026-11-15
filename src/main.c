@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 #include "nrfx_systick.h"
 
 #include "leds/leds.h"
@@ -16,18 +18,15 @@ int main(void) {
 
     leds_init();
     nrfx_systick_init();
-    pwm_init(&pwm_config);
+
+    if (!pwm_init(&pwm_config))
+        while (1) nrfx_systick_delay_ms(1000);
 
     while (1) {
-        // Fade LED0 up and down to verify hardware PWM.
-        for (uint16_t duty = 0; duty <= 255; duty++) {
-            pwm_set(PWM_CHANNEL_0, (uint8_t)duty);
-            nrfx_systick_delay_ms(20);
-        }
-
-        for (int16_t duty = 254; duty >= 0; duty--) {
-            pwm_set(PWM_CHANNEL_0, (uint8_t)duty);
-            nrfx_systick_delay_ms(20);
+        for (uint8_t i = 0; i < PWM_CHANNEL_COUNT; i++) {
+            pwm_set((pwm_channel_t)i, 255);
+            nrfx_systick_delay_ms(100);
+            pwm_set((pwm_channel_t)i, 0);
         }
     }
 }
