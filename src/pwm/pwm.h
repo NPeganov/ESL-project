@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+// The nRF PWM peripheral provides four output channels.
 #define PWM_CHANNEL_COUNT 4
 
 typedef enum
@@ -32,10 +33,11 @@ typedef struct
     pwm_channel_config_t channels[PWM_CHANNEL_COUNT];
 } pwm_config_t;
 
-// Return false if the requested PWM frequency cannot be represented or the driver cannot be started.
+// Initialize the PWM peripheral.
+// Return false if the frequency is unsupported or the driver cannot be started.
 bool pwm_init(pwm_config_t const *config);
 
-// Set the duty cycle from 0 (off) to 255 (on).
+// Set the duty cycle from 0 (off) to 255 (on), regardless of channel polarity.
 void pwm_set(pwm_channel_t channel, uint8_t duty);
 
 #endif
