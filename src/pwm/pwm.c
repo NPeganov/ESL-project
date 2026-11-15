@@ -27,7 +27,6 @@ static uint16_t m_top_value;
 static uint16_t pwm_top_value_calculate(uint32_t frequency_hz, nrf_pwm_clk_t *base_clock);
 static uint16_t pwm_channel_value(pwm_channel_t channel);
 static void pwm_sequence_update(void);
-static void pwm_event_handler(nrfx_pwm_evt_type_t event);
 
 void pwm_init(pwm_config_t const *config) {
     nrf_pwm_clk_t base_clock;
@@ -59,23 +58,17 @@ void pwm_init(pwm_config_t const *config) {
             nrfx_config.output_pins[i] |= NRFX_PWM_PIN_INVERTED;
     }
 
-    // Diagnostic: start with LED0 fully on.
+    // Diagnostic: keep LED0 fully on without sequence-end interrupts.
     m_duty[PWM_CHANNEL_0] = 255;
-
     pwm_sequence_update();
 
-    ASSERT(nrfx_pwm_init(&m_pwm, &nrfx_config, pwm_event_handler) == NRFX_SUCCESS);
+    ASSERT(nrfx_pwm_init(&m_pwm, &nrfx_config, NULL) == NRFX_SUCCESS);
 
-    // simple_playback uses the same sequence for SEQ0 and SEQ1.
-    // Handle both end events as required by the driver API.
     (void)nrfx_pwm_simple_playback(
         &m_pwm,
         &m_pwm_sequence,
         1,
-        NRFX_PWM_FLAG_LOOP |
-        NRFX_PWM_FLAG_SIGNAL_END_SEQ0 |
-        NRFX_PWM_FLAG_SIGNAL_END_SEQ1 |
-        NRFX_PWM_FLAG_NO_EVT_FINISHED);
+        NRFX_PWM_FLAG_LOOP | NRFX_PWM_FLAG_NO_EVT_FINISHED);
 }
 
 void pwm_set(pwm_channel_t channel, uint8_t duty) {
@@ -141,9 +134,4 @@ static void pwm_sequence_update(void) {
     m_sequence.channel_1 = pwm_channel_value(PWM_CHANNEL_1);
     m_sequence.channel_2 = pwm_channel_value(PWM_CHANNEL_2);
     m_sequence.channel_3 = pwm_channel_value(PWM_CHANNEL_3);
-}
-
-static void pwm_event_handler(nrfx_pwm_evt_type_t event) {
-    if (event == NRFX_PWM_EVT_END_SEQ0 || event == NRFX_PWM_EVT_END_SEQ1)
-        pwm_sequence_update();
 }
