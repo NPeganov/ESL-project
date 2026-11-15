@@ -29,7 +29,7 @@ typedef struct {
 
 // Configuration shared by all channels of the PWM peripheral.
 typedef struct {
-    // Requested PWM frequency in hertz. The closest supported frequency is selected.
+    // Requested PWM frequency in hertz. The fastest suitable clock is selected.
     uint32_t frequency_hz;
 
     // Pin and polarity settings, indexed by pwm_channel_t.
