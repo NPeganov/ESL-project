@@ -6,8 +6,10 @@
 
 #include "pwm.h"
 
-#define PWM_TOP_VALUE_MIN 3
-#define PWM_TOP_VALUE_MAX 32767
+// The nRF52840 PWM COUNTERTOP register accepts values from 3 to 32767.
+// The upper limit is 2^15 - 1 because COUNTERTOP is a 15-bit field.
+#define PWM_COUNTERTOP_MIN 3
+#define PWM_COUNTERTOP_MAX 32767
 #define PWM_IRQ_PRIORITY 6
 
 typedef struct {
@@ -115,14 +117,14 @@ static uint16_t pwm_top_value_calculate(
         { 125000, NRF_PWM_CLK_125kHz }
     };
 
-    // TOP_VALUE is limited to 3..32767. Select the fastest clock that fits.
+    // Select the fastest clock that keeps COUNTERTOP within its hardware limits.
     ASSERT(frequency_hz >= 4);
     ASSERT(frequency_hz <= 5333333);
 
     for (uint8_t i = 0; i < sizeof(clocks) / sizeof(clocks[0]); i++) {
         uint32_t top_value = (clocks[i].frequency_hz + frequency_hz / 2) / frequency_hz;
 
-        if (top_value < PWM_TOP_VALUE_MIN || top_value > PWM_TOP_VALUE_MAX)
+        if (top_value < PWM_COUNTERTOP_MIN || top_value > PWM_COUNTERTOP_MAX)
             continue;
 
         *base_clock = clocks[i].clock;
@@ -132,8 +134,8 @@ static uint16_t pwm_top_value_calculate(
 
     ASSERT(0);
     *base_clock = NRF_PWM_CLK_125kHz;
-    *actual_frequency_hz = 125000 / PWM_TOP_VALUE_MIN;
-    return PWM_TOP_VALUE_MIN;
+    *actual_frequency_hz = 125000 / PWM_COUNTERTOP_MIN;
+    return PWM_COUNTERTOP_MIN;
 }
 
 static uint16_t pwm_channel_value(pwm_channel_t channel) {
