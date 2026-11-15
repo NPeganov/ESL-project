@@ -59,6 +59,9 @@ void pwm_init(pwm_config_t const *config) {
             nrfx_config.output_pins[i] |= NRFX_PWM_PIN_INVERTED;
     }
 
+    // Diagnostic: start with LED0 fully on.
+    m_duty[PWM_CHANNEL_0] = 255;
+
     pwm_sequence_update();
 
     ASSERT(nrfx_pwm_init(&m_pwm, &nrfx_config, pwm_event_handler) == NRFX_SUCCESS);
