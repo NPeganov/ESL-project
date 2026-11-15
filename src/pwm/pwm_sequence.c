@@ -6,10 +6,10 @@
 #include "pwm.h"
 #include "pwm_internal.h"
 
-// Bit 15 selects falling-edge polarity for an active-low output.
+// Bit 15 selects falling-edge polarity for an active-low PWM output.
 #define PWM_VALUE_POLARITY_MASK 0x8000
 
-// Convert one channel's duty value to the corresponding PWM sequence value.
+// Convert one channel's duty cycle and active level to a PWM sequence value.
 static uint16_t pwm_channel_value(
     uint8_t duty,
     uint16_t top_value,
@@ -19,7 +19,7 @@ static uint16_t pwm_channel_value(
     uint32_t active_ticks =
         ((uint32_t)duty * top_value + UINT8_MAX / 2) / UINT8_MAX;
 
-    // The compare value is the inactive part of the period.
+    // The compare value represents the inactive part of the PWM period.
     uint16_t value = top_value - active_ticks;
 
     if (active_low)
@@ -28,14 +28,15 @@ static uint16_t pwm_channel_value(
     return value;
 }
 
-// Refresh the compare values for all PWM channels from the current duty values.
+// Rebuild the four hardware sequence values from the current channel settings.
+// This module owns the conversion from logical duty and polarity to hardware encoding.
 void pwm_sequence_update(
     nrf_pwm_values_individual_t *sequence,
     volatile uint8_t const *duty,
     uint16_t top_value,
     bool const *active_low) {
 
-    // NRF_PWM_LOAD_INDIVIDUAL stores one value for each of the four channels.
+    // Individual load mode stores one 16-bit value for each PWM channel.
     sequence->channel_0 = pwm_channel_value(
         duty[PWM_CHANNEL_0], top_value, active_low[PWM_CHANNEL_0]);
     sequence->channel_1 = pwm_channel_value(
