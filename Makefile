@@ -15,6 +15,7 @@ $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
 SRC_FILES += \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_systick.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_gpiote.c \
+  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_pwm.c \
   $(SDK_ROOT)/components/libraries/timer/app_timer2.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_clock.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_power.c \
@@ -32,6 +33,7 @@ SRC_FILES += \
   $(SDK_ROOT)/components/libraries/util/app_error_weak.c \
   $(SDK_ROOT)/components/libraries/strerror/nrf_strerror.c \
   $(PROJ_DIR)/main.c \
+  $(PROJ_DIR)/pwm/pwm.c \
   $(PROJ_DIR)/leds/leds.c \
   $(PROJ_DIR)/leds/soft_pwm.c \
   $(PROJ_DIR)/leds/fade.c \
@@ -157,7 +159,7 @@ LIB_FILES += -lc -lnosys -lm
 # Default target - first one defined
 default: nrf52840_xxaa
 
-# Print all targets that can be built
+# Print all targets
 help:
 	@echo following targets are available:
 	@echo		nrf52840_xxaa

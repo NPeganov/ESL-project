@@ -53,7 +53,7 @@
 #define APP_USBD_CONFIG_EVENT_QUEUE_ENABLE 1
 #define APP_USBD_CONFIG_EVENT_QUEUE_SIZE 32
 
-// Keep legacy POWER and USBD interrupt priorities aligned with the nrfx drivers.
+// Keep legacy POWER, USBD, and PWM interrupt priorities aligned.
 #define POWER_CONFIG_IRQ_PRIORITY 6
 #define USBD_CONFIG_IRQ_PRIORITY 6
 
@@ -61,5 +61,7 @@
 #define POWER_ENABLED 1
 #define NRFX_POWER_ENABLED 1
 #define NRFX_USBD_ENABLED 1
+#define NRFX_PWM_ENABLED 1
+#define NRFX_PWM0_ENABLED 1
 
 #endif
