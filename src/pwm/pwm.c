@@ -12,7 +12,7 @@
 // PWM interrupt priority, matching the other application peripherals.
 #define PWM_IRQ_PRIORITY 6
 
-// Refresh the output sequence every 10 ms.
+// Target interval for refreshing the output sequence.
 #define PWM_UPDATE_INTERVAL_MS 10
 #define PWM_MILLISECONDS_PER_SECOND 1000
 
