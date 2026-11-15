@@ -5,30 +5,29 @@
 
 #include "pwm_internal.h"
 
-// The PWM top_value range is 3 to 32767.
-// The maximum value is limited by the 15-bit compare field.
+// The PWM period count must fit the 15-bit compare field.
 #define PWM_TOP_VALUE_MIN 3
 #define PWM_TOP_VALUE_MAX 32767
 
-// The PWM peripheral derives all base clocks from a 16 MHz source.
+// The PWM peripheral derives its base clocks from a 16 MHz source.
 #define PWM_BASE_CLOCK_HZ 16000000
 
-// The slowest supported base clock is 16 MHz divided by 128 (125 kHz).
+// The slowest supported clock is 16 MHz divided by 128 (125 kHz).
 #define PWM_CLOCK_DIVIDER_MAX 128
 
-// Minimum frequency uses the slowest clock and largest top_value.
-// Round up because a lower frequency would require an unsupported top_value.
+// Minimum frequency uses the slowest clock and largest period count.
+// Round up because a lower frequency would require an unsupported period count.
 #define PWM_FREQUENCY_MIN_HZ \
     ((PWM_BASE_CLOCK_HZ / PWM_CLOCK_DIVIDER_MAX + PWM_TOP_VALUE_MAX - 1) / PWM_TOP_VALUE_MAX)
 
-// Maximum frequency uses the fastest clock and smallest supported top_value.
+// Maximum frequency uses the fastest clock and smallest supported period count.
 #define PWM_FREQUENCY_MAX_HZ (PWM_BASE_CLOCK_HZ / PWM_TOP_VALUE_MIN)
 
-// Select the fastest PWM clock that can represent the requested frequency.
-// A faster clock allows a larger top_value and therefore finer duty-cycle steps.
+// Select the fastest supported PWM clock that can represent the requested frequency.
+// A faster clock permits a larger period count and finer duty-cycle resolution.
 // Clock settings are ordered from fastest to slowest.
 bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing) {
-    // Reject frequencies that cannot be represented by any supported clock and top_value.
+    // Reject frequencies outside the range supported by all clock and period settings.
     if (frequency_hz < PWM_FREQUENCY_MIN_HZ ||
         frequency_hz > PWM_FREQUENCY_MAX_HZ)
         return false;
@@ -46,7 +45,7 @@ bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing) {
             timing->base_clock = base_clock;
             timing->top_value = (uint16_t)top_value;
 
-            // Store the frequency that these integer timing settings actually produce.
+            // Store the frequency actually produced by the selected integer settings.
             timing->actual_frequency_hz =
                 (clock_frequency_hz + top_value / 2) / top_value;
 
