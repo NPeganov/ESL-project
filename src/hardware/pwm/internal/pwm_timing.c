@@ -3,7 +3,7 @@
 
 #include "nrfx_pwm.h"
 
-#include "pwm_internal.h"
+#include "internal/pwm_internal.h"
 
 // The PWM period count must fit the 15-bit compare field.
 #define PWM_TOP_VALUE_MIN 3
