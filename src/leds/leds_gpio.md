@@ -163,8 +163,8 @@ nrf_gpio_pin_write(pin, !LEDS_ACTIVE_STATE);
 ~~~ c
 void leds_gpio_on(uint32_t led_idx);
 void leds_gpio_off(uint32_t led_idx);
-void leds_off(void);
-void leds_init(void);
+void leds_gpio_off_all(void);
+void leds_gpio_init(void);
 ~~~
 
 Для индекса используется `uint32_t`, как и в аналогичном API
