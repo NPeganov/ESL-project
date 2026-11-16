@@ -44,7 +44,7 @@ typedef struct {
 // Initialize the LED controller, software PWM and fade modules.
 //
 // Preconditions:
-// - leds_init() has been called.
+// - leds_gpio_init() has been called.
 // - nrfx_systick_init() has been called.
 // - pwm_period_us is within the timeout range supported by nrfx_systick_test().
 //

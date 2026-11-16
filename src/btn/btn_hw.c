@@ -7,6 +7,7 @@
 #include "nrfx_gpiote.h"
 
 #include "btn_hw.h"
+#include "log/log.h"
 #include "pca10059.h"
 
 #define BTN_DEBOUNCE_TIME_MS 10
@@ -32,7 +33,7 @@ static volatile bool m_initial_state_pending;
 static void gpiote_pin_change_callback(
     nrfx_gpiote_pin_t pin,
     nrf_gpiote_polarity_t action);
-    
+
 static void rtc1_debounce_callback(void *p_context);
 
 void btn_hw_init(btn_hw_callback_t callback) {
@@ -95,15 +96,21 @@ static void gpiote_pin_change_callback(
 }
 
 static void rtc1_debounce_callback(void *p_context) {
+    bool pin_high;
     bool pin_state;
 
     (void)p_context;
 
     // Check the physical input again after the debounce interval.
-    pin_state = (nrf_gpio_pin_read(m_btn_pin) == BUTTONS_ACTIVE_STATE);
+    pin_high = nrf_gpio_pin_read(m_btn_pin) != 0;
+    pin_state = (pin_high == (BUTTONS_ACTIVE_STATE != 0));
 
     // If the input changed during the interval, wait for another complete interval.
     if (pin_state != m_debounce_candidate_state) {
+        // This callback runs in interrupt context. Logging must remain deferred
+        // so that the callback does not perform synchronous backend I/O.
+        LOG_INFO("Button bounce detected");
+
         m_debounce_candidate_state = pin_state;
 
         APP_ERROR_CHECK(app_timer_start(
@@ -113,6 +120,11 @@ static void rtc1_debounce_callback(void *p_context) {
 
         return;
     }
+
+    // Report the stable physical GPIO level.
+    // This callback runs in interrupt context. Logging must remain deferred
+    // so that the callback does not perform synchronous backend I/O.
+    LOG_INFO("Button stable level: %s", pin_high ? "High" : "Low");
 
     // The initial state is reported only after it has passed debounce.
     if (m_initial_state_pending) {

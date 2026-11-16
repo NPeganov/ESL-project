@@ -1,7 +1,8 @@
 #include <stddef.h>
 
 #include "led_controller.h"
-#include "leds.h"
+#include "hardware/leds_gpio/leds_gpio.h"
+#include "log/log.h"
 
 #define LED_CONTROLLER_PAUSE_UPDATE_INTERVAL_MS 1
 
@@ -16,8 +17,8 @@ enum {
 static void pwm_led_output(bool state, void *context) {
     led_controller_t *controller = context;
 
-    if (state) led_on(controller->led_idx);
-    else led_off(controller->led_idx);
+    if (state) leds_gpio_on(controller->led_idx);
+    else leds_gpio_off(controller->led_idx);
 }
 
 // Start the fade-in phase from zero brightness.
@@ -27,6 +28,8 @@ static void start_fade_in(led_controller_t *controller) {
         0,
         FADE_PERCENT_MAX,
         controller->fade_duration_ms);
+
+    LOG_INFO("LED %u: FadeIn started", (unsigned int)(controller->led_idx + 1));
 
     controller->phase = LED_CONTROLLER_PHASE_FADE_IN;
 }
@@ -38,6 +41,8 @@ static void start_fade_out(led_controller_t *controller) {
         FADE_PERCENT_MAX,
         0,
         controller->fade_duration_ms);
+
+    LOG_INFO("LED %u: FadeOut started", (unsigned int)(controller->led_idx + 1));
 
     controller->phase = LED_CONTROLLER_PHASE_FADE_OUT;
 }
@@ -89,7 +94,7 @@ void led_controller_prepare(
     controller->led_idx = led_idx;
 
     // Ensure the newly selected LED starts from the off state.
-    led_off(controller->led_idx);
+    leds_gpio_off(controller->led_idx);
 
     // Replace the current sequence and reset its progress.
     controller->cycle_count = cycle_count;
@@ -153,8 +158,10 @@ bool led_controller_process(led_controller_t *controller) {
 
             // Once fade-in is complete, immediately begin fade-out.
             if (!fade_is_active(&controller->fade) &&
-                !fade_is_paused(&controller->fade))
+                !fade_is_paused(&controller->fade)) {
+                LOG_INFO("LED %u: FadeIn completed", (unsigned int)(controller->led_idx + 1));
                 start_fade_out(controller);
+            }
 
             break;
 
@@ -164,6 +171,7 @@ bool led_controller_process(led_controller_t *controller) {
             // A completed fade-out marks the end of one full cycle.
             if (!fade_is_active(&controller->fade) &&
                 !fade_is_paused(&controller->fade)) {
+                LOG_INFO("LED %u: FadeOut completed", (unsigned int)(controller->led_idx + 1));
                 controller->cycles_completed++;
 
                 // The sequence is complete when all requested cycles finish.
@@ -181,6 +189,7 @@ bool led_controller_process(led_controller_t *controller) {
                 }
 
                 // Otherwise, begin measuring the inter-cycle pause.
+                LOG_INFO("LED %u: Fade cycle pause started", (unsigned int)(controller->led_idx + 1));
                 nrfx_systick_get(&controller->pause_start);
                 controller->pause_elapsed_ms = 0;
                 controller->phase = LED_CONTROLLER_PHASE_PAUSE;

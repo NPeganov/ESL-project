@@ -1,53 +1,49 @@
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "nrfx_systick.h"
 
 #include "btn/btn.h"
-#include "leds/leds.h"
-#include "leds/led_sequence.h"
-
-
-#define DEVICE_ID               "6609"
-
-#define PWM_PERIOD_US           1000
-#define FADE_DURATION_MS        600
-#define CYCLE_PAUSE_MS          500
-#define INTER_LED_PAUSE_MS      500
-
+#include "main_behavior.h"
 
 int main(void) {
-    led_sequence_t sequence;
-
-    leds_init();
+    bool single_press_pending = false;
+    uint16_t single_press_timeout_ms = 0;
 
     nrfx_systick_init();
 
+    // btn_init() initializes LFCLK and the shared app_timer framework.
     btn_init();
 
-    if (!led_sequence_init(
-            &sequence,
-            DEVICE_ID,
-            PWM_PERIOD_US,
-            FADE_DURATION_MS,
-            CYCLE_PAUSE_MS,
-            INTER_LED_PAUSE_MS)) while (true);
+    if (!main_behavior_init())
+        while (1) nrfx_systick_delay_ms(1000);
 
-    while (true) {
-        // Keep the LED sequence and software PWM serviced, including while paused.
-        led_sequence_process(&sequence);
-
-        // Process all pending button events.
+    while (1) {
         btn_event_t event;
-        while ((event = btn_event_take()) != BTN_EVENT_NONE)
-        {
-            if (event != BTN_EVENT_DOUBLE_PRESS)
-                continue;
 
-            // Toggle the LED sequence on every double press.
-            if (led_sequence_is_running(&sequence))
-                led_sequence_pause(&sequence);
-            else
-                led_sequence_resume(&sequence);
+        // A double click also produces SINGLE_PRESS events. Delay the single
+        // action until the double-press window has expired.
+        while ((event = btn_event_take()) != BTN_EVENT_NONE) {
+            if (event == BTN_EVENT_SINGLE_PRESS) {
+                single_press_pending = true;
+                // Must exceed BTN_DOUBLE_PRESS_TIME_MS in btn.c.
+                single_press_timeout_ms = 1100;
+            } else if (event == BTN_EVENT_DOUBLE_PRESS) {
+                single_press_pending = false;
+                single_press_timeout_ms = 0;
+            }
         }
+
+        if (single_press_pending) {
+            if (single_press_timeout_ms <= 10) {
+                single_press_pending = false;
+
+                if (!main_behavior_toggle_yellow())
+                    while (1) nrfx_systick_delay_ms(1000);
+            } else
+                single_press_timeout_ms -= 10;
+        }
+
+        nrfx_systick_delay_ms(10);
     }
 }
