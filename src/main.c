@@ -7,7 +7,7 @@
 #include "leds/leds_pwm.h"
 #include "seq/seq.h"
 
-// Yellow LED: a 6-second brightness cycle.
+// Yellow LED: a 6-second brightness cycle with slow ramps.
 static seq_step_t const m_yellow_steps[] = {
     { 0, 100, 2000 },
     { 100, 100, 1000 },
@@ -15,7 +15,15 @@ static seq_step_t const m_yellow_steps[] = {
     { 0, 0, 1000 }
 };
 
-// RGB LED: the same cycle shifted by 3 seconds.
+// Alternate yellow sequence: fast ramps and long holds.
+static seq_step_t const m_yellow_alternate_steps[] = {
+    { 0, 100, 500 },
+    { 100, 100, 2000 },
+    { 100, 0, 500 },
+    { 0, 0, 2000 }
+};
+
+// RGB LED keeps its independent 6-second brightness cycle.
 static seq_step_t const m_rgb_steps[] = {
     { 100, 100, 1000 },
     { 100, 0, 2000 },
@@ -29,6 +37,12 @@ static seq_config_t const m_yellow_config = {
     .repeat = true
 };
 
+static seq_config_t const m_yellow_alternate_config = {
+    .steps = m_yellow_alternate_steps,
+    .step_count = sizeof(m_yellow_alternate_steps) / sizeof(m_yellow_alternate_steps[0]),
+    .repeat = true
+};
+
 static seq_config_t const m_rgb_config = {
     .steps = m_rgb_steps,
     .step_count = sizeof(m_rgb_steps) / sizeof(m_rgb_steps[0]),
@@ -37,10 +51,10 @@ static seq_config_t const m_rgb_config = {
 
 static void yellow_callback(uint16_t value, void *context);
 static void rgb_value_callback(uint16_t value, void *context);
-static void executor_toggle(seq_led_id id);
 
 int main(void) {
     bool single_press_pending = false;
+    bool yellow_alternate = false;
     uint16_t single_press_timeout_ms = 0;
 
     nrfx_systick_init();
@@ -76,14 +90,22 @@ int main(void) {
             } else if (event == BTN_EVENT_DOUBLE_PRESS) {
                 single_press_pending = false;
                 single_press_timeout_ms = 0;
-                executor_toggle(RGB_LED);
             }
         }
 
         if (single_press_pending) {
             if (single_press_timeout_ms <= 10) {
                 single_press_pending = false;
-                executor_toggle(YELLOW_LED);
+                yellow_alternate = !yellow_alternate;
+
+                // seq_start() replaces the current sequence and starts the
+                // selected route from its first step.
+                if (!seq_start(
+                    YELLOW_LED,
+                    yellow_alternate ? &m_yellow_alternate_config : &m_yellow_config,
+                    yellow_callback,
+                    NULL))
+                    while (1) nrfx_systick_delay_ms(1000);
             } else
                 single_press_timeout_ms -= 10;
         }
@@ -107,19 +129,4 @@ static void rgb_value_callback(uint16_t value, void *context) {
 
     leds_pwm_get_hsv(&hue, &saturation, &brightness);
     leds_pwm_set_hsv(hue, saturation, (uint8_t)value);
-}
-
-static void executor_toggle(seq_led_id id) {
-    switch (seq_get_state(id)) {
-        case SEQ_STATE_RUNNING:
-            seq_pause(id);
-            break;
-
-        case SEQ_STATE_PAUSED:
-            seq_resume(id);
-            break;
-
-        default:
-            break;
-    }
 }
