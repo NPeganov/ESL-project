@@ -38,6 +38,8 @@ SRC_FILES += \
   $(PROJ_DIR)/pwm/pwm_sequence.c \
   $(PROJ_DIR)/leds/leds_gpio.c \
   $(PROJ_DIR)/leds/leds_pwm.c \
+  $(PROJ_DIR)/interpol/interpol.c \
+  $(PROJ_DIR)/seq/seq.c \
   $(PROJ_DIR)/leds/soft_pwm.c \
   $(PROJ_DIR)/leds/fade.c \
   $(PROJ_DIR)/leds/led_controller.c \
