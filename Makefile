@@ -33,9 +33,8 @@ SRC_FILES += \
   $(SDK_ROOT)/components/libraries/util/app_error_weak.c \
   $(SDK_ROOT)/components/libraries/strerror/nrf_strerror.c \
   $(PROJ_DIR)/main.c \
-  $(PROJ_DIR)/pwm/pwm.c \
-  $(PROJ_DIR)/pwm/pwm_timing.c \
-  $(PROJ_DIR)/pwm/pwm_sequence.c \
+  $(PROJ_DIR)/hardware/pwm/pwm.c \
+  $(PROJ_DIR)/hardware/pwm/internal/pwm_internal.c \
   $(PROJ_DIR)/leds/leds_gpio.c \
   $(PROJ_DIR)/leds/leds_pwm.c \
   $(PROJ_DIR)/leds/soft_pwm.c \

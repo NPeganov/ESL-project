@@ -5,7 +5,7 @@
 #include "pca10059.h"
 
 #include "leds_pwm.h"
-#include "pwm/pwm.h"
+#include "hardware/pwm/pwm.h"
 
 typedef struct {
     uint8_t red;
