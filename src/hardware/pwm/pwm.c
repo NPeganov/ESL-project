@@ -15,10 +15,10 @@
 
 static nrfx_pwm_t m_pwm = NRFX_PWM_INSTANCE(0);
 static bool m_channel_active_low[PWM_CHANNEL_COUNT];
-static nrf_pwm_values_individual_t m_sequence;
+static nrf_pwm_values_individual_t m_sequence_values;
 static volatile uint8_t m_duty[PWM_CHANNEL_COUNT];
 static uint16_t m_top_value;
-static uint32_t m_update_interval;
+static uint32_t m_update_periods;
 
 // Configure channel pins, polarity, and initial duty values.
 static void pwm_channels_configure(
@@ -28,8 +28,8 @@ static void pwm_channels_configure(
 // Initialize the nrfx driver and start looping sequence playback.
 static bool pwm_driver_start(nrfx_pwm_config_t const *config);
 
-// Refresh the sequence buffer periodically as duty values change.
-static void pwm_event_handler(nrfx_pwm_evt_type_t event);
+// Handle sequence-end events and refresh playback values periodically.
+static void pwm_playback_event_handler(nrfx_pwm_evt_type_t event);
 
 // Select hardware timing, configure all channels, then start PWM playback.
 bool pwm_init(pwm_config_t const *config) {
@@ -55,17 +55,18 @@ bool pwm_init(pwm_config_t const *config) {
     // Copy pin and polarity settings into the driver's configuration.
     pwm_channels_configure(config, &nrfx_config);
 
-    // Convert the requested refresh interval to a number of actual PWM periods.
+    // Convert the refresh interval to a number of PWM periods.
     // Use the rounded hardware frequency to account for timing quantization.
-    m_update_interval = (
+    m_update_periods = (
         timing.actual_frequency_hz * PWM_UPDATE_INTERVAL_MS +
         PWM_MILLISECONDS_PER_SECOND / 2) / PWM_MILLISECONDS_PER_SECOND;
 
-    if (m_update_interval == 0)
-        m_update_interval = 1;
+    if (m_update_periods == 0)
+        m_update_periods = 1;
 
     // Prepare the initial all-zero sequence before starting the peripheral.
-    pwm_sequence_update(&m_sequence, m_duty, m_top_value, m_channel_active_low);
+    pwm_sequence_update(
+        &m_sequence_values, m_duty, m_top_value, m_channel_active_low);
 
     return pwm_driver_start(&nrfx_config);
 }
@@ -73,7 +74,7 @@ bool pwm_init(pwm_config_t const *config) {
 void pwm_set(pwm_channel_t channel, uint8_t duty) {
     ASSERT((uint32_t)channel < PWM_CHANNEL_COUNT);
 
-    // The event handler copies the latest duty values into the playback buffer.
+    // The playback handler copies the latest duty values into the sequence.
     m_duty[channel] = duty;
 }
 
@@ -103,11 +104,11 @@ static bool pwm_driver_start(nrfx_pwm_config_t const *config) {
     nrf_pwm_sequence_t sequence;
 
     // The driver owns the peripheral setup; do not start playback on failure.
-    if (nrfx_pwm_init(&m_pwm, config, pwm_event_handler) != NRFX_SUCCESS)
+    if (nrfx_pwm_init(&m_pwm, config, pwm_playback_event_handler) != NRFX_SUCCESS)
         return false;
 
-    // The sequence buffer is updated in place by pwm_event_handler().
-    sequence.values.p_individual = &m_sequence;
+    // The sequence values are updated in place by the playback handler.
+    sequence.values.p_individual = &m_sequence_values;
     sequence.length = PWM_CHANNEL_COUNT;
     sequence.repeats = 0;
     sequence.end_delay = 0;
@@ -125,17 +126,18 @@ static bool pwm_driver_start(nrfx_pwm_config_t const *config) {
     return true;
 }
 
-static void pwm_event_handler(nrfx_pwm_evt_type_t event) {
-    static uint32_t update_counter;
+static void pwm_playback_event_handler(nrfx_pwm_evt_type_t event) {
+    static uint32_t periods_since_update;
 
     // Ignore events unrelated to the looping sequence boundaries.
     if (event != NRFX_PWM_EVT_END_SEQ0 && event != NRFX_PWM_EVT_END_SEQ1)
         return;
 
-    // Limit buffer updates to the configured interval instead of every period.
-    if (++update_counter < m_update_interval)
+    // Refresh the sequence only after the configured number of periods.
+    if (++periods_since_update < m_update_periods)
         return;
 
-    update_counter = 0;
-    pwm_sequence_update(&m_sequence, m_duty, m_top_value, m_channel_active_low);
+    periods_since_update = 0;
+    pwm_sequence_update(
+        &m_sequence_values, m_duty, m_top_value, m_channel_active_low);
 }
