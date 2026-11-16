@@ -5,7 +5,7 @@
 
 #include "btn/btn.h"
 #include "leds/leds_pwm.h"
-#include "seq/seq.h"
+#include "leds/leds_seq.h"
 
 // Yellow LED: a 6-second brightness cycle with slow ramps.
 static seq_step_t const m_yellow_steps[] = {

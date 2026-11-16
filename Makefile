@@ -33,17 +33,18 @@ SRC_FILES += \
   $(SDK_ROOT)/components/libraries/util/app_error_weak.c \
   $(SDK_ROOT)/components/libraries/strerror/nrf_strerror.c \
   $(PROJ_DIR)/main.c \
-  $(PROJ_DIR)/pwm/pwm.c \
-  $(PROJ_DIR)/pwm/pwm_timing.c \
-  $(PROJ_DIR)/pwm/pwm_sequence.c \
-  $(PROJ_DIR)/leds/leds_gpio.c \
+  $(PROJ_DIR)/hardware/pwm/pwm.c \
+  $(PROJ_DIR)/hardware/pwm/pwm_timing.c \
+  $(PROJ_DIR)/hardware/pwm/pwm_sequence.c \
+  $(PROJ_DIR)/hardware/leds_gpio/leds_gpio.c \
   $(PROJ_DIR)/leds/leds_pwm.c \
-  $(PROJ_DIR)/interpol/interpol.c \
-  $(PROJ_DIR)/seq/seq.c \
-  $(PROJ_DIR)/leds/soft_pwm.c \
-  $(PROJ_DIR)/leds/fade.c \
-  $(PROJ_DIR)/leds/led_controller.c \
-  $(PROJ_DIR)/leds/led_sequence.c \
+  $(PROJ_DIR)/leds/internal/interpol.c \
+  $(PROJ_DIR)/leds/internal/color.c \
+  $(PROJ_DIR)/leds/leds_seq.c \
+  $(PROJ_DIR)/leds_soft/soft_pwm.c \
+  $(PROJ_DIR)/leds_soft/fade.c \
+  $(PROJ_DIR)/leds_soft/led_controller.c \
+  $(PROJ_DIR)/leds_soft/led_sequence.c \
   $(PROJ_DIR)/btn/btn.c \
   $(PROJ_DIR)/btn/btn_hw.c \
   $(PROJ_DIR)/log/log.c \
@@ -68,6 +69,7 @@ SRC_FILES += \
 # Include folders common to all targets
 INC_FOLDERS += \
   $(PROJ_DIR) \
+  $(PROJ_DIR)/config \
   $(SDK_ROOT)/components \
   $(SDK_ROOT)/modules/nrfx/mdk \
   $(SDK_ROOT)/modules/nrfx/drivers/include/ \

@@ -7,8 +7,8 @@
 #include "app_util_platform.h"
 #include "nrf_assert.h"
 
-#include "interpol/interpol.h"
-#include "seq.h"
+#include "internal/interpol.h"
+#include "leds_seq.h"
 
 #define SEQ_TIMER_INTERVAL_MS 10
 
