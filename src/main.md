@@ -923,7 +923,7 @@ running: FALSE -> TRUE
 BOOT
  |
  v
-leds_init
+leds_gpio_init
  |
  v
 SysTick init
@@ -1518,7 +1518,7 @@ soft_pwm_process
 pwm_led_output
   |
   v
-led_on
+leds_gpio_on
   |
   v
 GPIO
