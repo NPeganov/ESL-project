@@ -16,7 +16,7 @@ typedef struct {
 // Select a supported base clock and period count; return false if unavailable.
 bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing);
 
-// Recalculate the four sequence compare values using the current duty settings.
+// Recalculate the four sequence compare values from the current duty settings.
 void pwm_sequence_update(
     nrf_pwm_values_individual_t *sequence,
     volatile uint8_t const *duty,
