@@ -37,7 +37,7 @@ main.c является точкой сборки приложения и вер
                  BUTTON GPIO    PWM output callback
                                       |
                                       v
-                                    leds
+                                    leds_gpio
                                       |
                                       v
                                    LED GPIO
@@ -66,7 +66,7 @@ flowchart TD
     MAIN["main()"]
 
     subgraph INIT["Инициализация"]
-        LED_INIT["leds_init()"]
+        LED_INIT["leds_gpio_init()"]
         SYSTICK_INIT["nrfx_systick_init()"]
         BTN_INIT["btn_init()"]
         LOG_INIT["log_init()"]
@@ -144,7 +144,7 @@ flowchart TD
     PWM --> CALLBACK
 
     subgraph LED_HW["Физические LED"]
-        LEDS["leds"]
+        LEDS["leds_gpio"]
         MAP["LEDS_LIST / LEDS_ACTIVE_STATE"]
         GPIO_LED["LED GPIO"]
         PHYSICAL["Physical LED"]
@@ -194,7 +194,7 @@ led_sequence_t sequence;
 После создания объекта выполняется строго определённая последовательность:
 
 ~~~ text
-leds_init()
+leds_gpio_init()
     |
     v
 nrfx_systick_init()
@@ -277,9 +277,9 @@ fade не управляет GPIO. Он рассчитывает очередн�
 
 soft_pwm преобразует скважность в физическую последовательность ON/OFF. При изменении логического состояния вызывается output callback. В текущей архитектуре callback — pwm_led_output() из led_controller.c.
 
-### 6. leds
+### 6. leds_gpio
 
-pwm_led_output() вызывает led_on() или led_off(). Модуль leds переводит логический индекс LED в GPIO конкретной платы.
+pwm_led_output() вызывает leds_gpio_on() или leds_gpio_off(). Модуль leds_gpio переводит логический индекс LED в GPIO конкретной платы.
 
 Итоговый путь LED:
 
@@ -295,7 +295,7 @@ soft_pwm
 pwm_led_output()
   |
   v
-leds
+leds_gpio
   |
   v
 nrf_gpio_pin_write()
@@ -313,7 +313,7 @@ physical LED
 Текущий main() выполняет:
 
 ~~~ c
-leds_init();
+leds_gpio_init();
 
 nrfx_systick_init();
 
@@ -332,7 +332,7 @@ if (!led_sequence_init(
 
 ---
 
-# 1. leds_init()
+# 1. leds_gpio_init()
 
 Первым инициализируется LED hardware.
 
@@ -353,7 +353,7 @@ soft_pwm_init()
 pwm_led_output(false)
     |
     v
-led_off()
+leds_gpio_off()
     |
     v
 GPIO
@@ -361,7 +361,7 @@ GPIO
 
 Поэтому GPIO светодиодов должен быть готов до создания led_controller.
 
-leds_init():
+leds_gpio_init():
 
 1. настраивает GPIO всех LED как output;
 2. переводит все LED в выключенное состояние.
@@ -1081,7 +1081,7 @@ main
 
 # Взаимодействие main и LED callback
 
-main не вызывает led_on() или led_off() в нормальном режиме.
+main не вызывает leds_gpio_on() или leds_gpio_off() в нормальном режиме.
 
 Полный путь:
 
@@ -1102,7 +1102,7 @@ led_controller
    pwm_led_output()
         |
         v
-      leds
+      leds_gpio
 ~~~
 
 Это сохраняет независимость верхнего уровня от GPIO.
@@ -1164,7 +1164,7 @@ main не отвечает за:
              v                          +----+----+
        button GPIO                           |
                                              v
-                                           leds
+                                           leds_gpio
                                              |
                                              v
                                          LED GPIO
@@ -1189,7 +1189,7 @@ main
 ## LED hardware готов до soft_pwm
 
 ~~~ text
-leds_init()
+leds_gpio_init()
      |
      v
 led_sequence_init()
@@ -1560,7 +1560,7 @@ soft_pwm_process()     fade_process()
       pwm_led_output()
                |
                v
-             leds
+             leds_gpio
                |
                v
              GPIO
@@ -1664,7 +1664,7 @@ ignore    is_running()
                                                  output callback
                                                         |
                                                         v
-                                                     leds
+                                                     leds_gpio
                                                         |
                                                         v
                                                    LED GPIO
