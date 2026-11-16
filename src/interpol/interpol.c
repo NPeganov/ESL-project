@@ -11,11 +11,11 @@ typedef enum {
     HUE_DIR_CCW
 } hue_direction_t;
 
-// Current interpolation curve.
-#define INTERPOL_CURVE INTERPOL_LINEAR
+// Linear interpolation is currently the only supported curve.
+static const interpol_curve_t m_curve = INTERPOL_LINEAR;
 
-// Current hue direction. Used when hue-aware interpolation is added.
-#define INTERPOL_HUE_DIRECTION HUE_DIR_CW
+// Hue direction is reserved for the future hue-aware interpolation path.
+static const hue_direction_t m_hue_direction = HUE_DIR_CW;
 
 uint16_t interpol_linear(
     uint16_t from,

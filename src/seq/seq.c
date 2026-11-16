@@ -4,6 +4,7 @@
 
 #include "app_error.h"
 #include "app_timer.h"
+#include "nrf_assert.h"
 
 #include "interpol/interpol.h"
 #include "seq.h"
@@ -75,7 +76,8 @@ bool seq_start(
     void *context) {
     seq_executor_t *executor = executor_get(id);
 
-    if (!m_initialized || executor == NULL || !config_is_valid(config))
+    if (!m_initialized || executor == NULL ||
+        !config_is_valid(config) || callback == NULL)
         return false;
 
     if (config->repeat && !config_has_timed_step(config))
