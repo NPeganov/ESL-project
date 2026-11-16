@@ -4,6 +4,7 @@
 
 #include "app_error.h"
 #include "app_timer.h"
+#include "app_util_platform.h"
 #include "nrf_assert.h"
 
 #include "interpol/interpol.h"
@@ -83,6 +84,9 @@ bool seq_start(
     if (config->repeat && !config_has_timed_step(config))
         return false;
 
+    // Keep the timer handler from observing a partially replaced executor.
+    CRITICAL_REGION_ENTER();
+
     executor->config = *config;
     executor->callback = callback;
     executor->context = context;
@@ -94,36 +98,56 @@ bool seq_start(
 
     executor_process(executor);
 
+    CRITICAL_REGION_EXIT();
+
     return true;
 }
 
 void seq_pause(seq_led_id id) {
     seq_executor_t *executor = executor_get(id);
 
-    if (executor == NULL || executor->state != SEQ_STATE_RUNNING) return;
+    if (executor == NULL) return;
 
-    executor->elapsed_time = app_timer_cnt_diff_compute(
-        app_timer_cnt_get(),
-        executor->start_time);
+    CRITICAL_REGION_ENTER();
 
-    executor->state = SEQ_STATE_PAUSED;
+    if (executor->state == SEQ_STATE_RUNNING) {
+        executor->elapsed_time = app_timer_cnt_diff_compute(
+            app_timer_cnt_get(),
+            executor->start_time);
+
+        executor->state = SEQ_STATE_PAUSED;
+    }
+
+    CRITICAL_REGION_EXIT();
 }
 
 void seq_resume(seq_led_id id) {
     seq_executor_t *executor = executor_get(id);
 
-    if (executor == NULL || executor->state != SEQ_STATE_PAUSED) return;
+    if (executor == NULL) return;
 
-    executor->start_time = app_timer_cnt_get() - executor->elapsed_time;
-    executor->state = SEQ_STATE_RUNNING;
+    CRITICAL_REGION_ENTER();
+
+    if (executor->state == SEQ_STATE_PAUSED) {
+        executor->start_time = app_timer_cnt_get() - executor->elapsed_time;
+        executor->state = SEQ_STATE_RUNNING;
+    }
+
+    CRITICAL_REGION_EXIT();
 }
 
 seq_state_t seq_get_state(seq_led_id id) {
     seq_executor_t *executor = executor_get(id);
 
+    seq_state_t state;
+
     if (executor == NULL) return SEQ_STATE_IDLE;
 
-    return executor->state;
+    CRITICAL_REGION_ENTER();
+    state = executor->state;
+    CRITICAL_REGION_EXIT();
+
+    return state;
 }
 
 static seq_executor_t *executor_get(seq_led_id id) {
