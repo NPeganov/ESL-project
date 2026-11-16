@@ -2,7 +2,7 @@
 
 #include "nrfx_systick.h"
 
-#include "leds/leds.h"
+#include "leds/leds_gpio.h"
 #include "pwm/pwm.h"
 
 int main(void) {
@@ -16,7 +16,7 @@ int main(void) {
         }
     };
 
-    leds_init();
+    leds_gpio_init();
     nrfx_systick_init();
 
     if (!pwm_init(&pwm_config))
