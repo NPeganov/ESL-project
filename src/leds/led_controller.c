@@ -94,7 +94,7 @@ void led_controller_prepare(
     controller->led_idx = led_idx;
 
     // Ensure the newly selected LED starts from the off state.
-    led_off(controller->led_idx);
+    leds_gpio_off(controller->led_idx);
 
     // Replace the current sequence and reset its progress.
     controller->cycle_count = cycle_count;
