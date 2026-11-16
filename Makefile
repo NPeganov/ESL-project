@@ -37,6 +37,7 @@ SRC_FILES += \
   $(PROJ_DIR)/pwm/pwm_timing.c \
   $(PROJ_DIR)/pwm/pwm_sequence.c \
   $(PROJ_DIR)/leds/leds_gpio.c \
+  $(PROJ_DIR)/leds/leds_pwm.c \
   $(PROJ_DIR)/leds/soft_pwm.c \
   $(PROJ_DIR)/leds/fade.c \
   $(PROJ_DIR)/leds/led_controller.c \
