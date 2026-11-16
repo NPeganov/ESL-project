@@ -1,7 +1,7 @@
 #include <stddef.h>
 
 #include "led_controller.h"
-#include "leds.h"
+#include "leds_gpio.h"
 #include "log/log.h"
 
 #define LED_CONTROLLER_PAUSE_UPDATE_INTERVAL_MS 1
@@ -17,8 +17,8 @@ enum {
 static void pwm_led_output(bool state, void *context) {
     led_controller_t *controller = context;
 
-    if (state) led_on(controller->led_idx);
-    else led_off(controller->led_idx);
+    if (state) leds_gpio_on(controller->led_idx);
+    else leds_gpio_off(controller->led_idx);
 }
 
 // Start the fade-in phase from zero brightness.
