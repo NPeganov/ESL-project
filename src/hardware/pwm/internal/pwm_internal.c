@@ -16,7 +16,7 @@
 #define PWM_FREQUENCY_MAX_HZ (PWM_BASE_CLOCK_HZ / PWM_TOP_VALUE_MIN)
 
 // Bit 15 selects falling-edge polarity for an active-low output.
-#define PWM_VALUE_POLARITY_MASK 0x8000
+#define PWM_COMPARE_POLARITY_MASK 0x8000
 
 // Choose a base clock and period count that represent the requested frequency.
 bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing) {
@@ -54,7 +54,7 @@ bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing) {
 }
 
 // Convert 8-bit logical duty into the nRF PWM compare value for one channel.
-static uint16_t pwm_channel_value(
+static uint16_t pwm_channel_compare_value(
     uint8_t duty,
     uint16_t top_value,
     bool active_low) {
@@ -64,13 +64,13 @@ static uint16_t pwm_channel_value(
         ((uint32_t)duty * top_value + UINT8_MAX / 2) / UINT8_MAX;
 
     // In up-counting mode, the compare value determines the inactive portion.
-    uint16_t value = top_value - active_ticks;
+    uint16_t compare_value = top_value - active_ticks;
 
     // The high bit selects the edge polarity; the lower 15 bits hold compare.
     if (active_low)
-        value |= PWM_VALUE_POLARITY_MASK;
+        compare_value |= PWM_COMPARE_POLARITY_MASK;
 
-    return value;
+    return compare_value;
 }
 
 // Rebuild all four values in the individual-load sequence from current duties.
@@ -80,8 +80,8 @@ void pwm_sequence_update(
     uint16_t top_value,
     bool const *active_low) {
 
-    sequence->channel_0 = pwm_channel_value(duty[0], top_value, active_low[0]);
-    sequence->channel_1 = pwm_channel_value(duty[1], top_value, active_low[1]);
-    sequence->channel_2 = pwm_channel_value(duty[2], top_value, active_low[2]);
-    sequence->channel_3 = pwm_channel_value(duty[3], top_value, active_low[3]);
+    sequence->channel_0 = pwm_channel_compare_value(duty[0], top_value, active_low[0]);
+    sequence->channel_1 = pwm_channel_compare_value(duty[1], top_value, active_low[1]);
+    sequence->channel_2 = pwm_channel_compare_value(duty[2], top_value, active_low[2]);
+    sequence->channel_3 = pwm_channel_compare_value(duty[3], top_value, active_low[3]);
 }
