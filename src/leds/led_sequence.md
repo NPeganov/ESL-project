@@ -6,7 +6,7 @@ device_id количество циклов для выбранного LED и �
 в led_controller.
 
 Модуль не управляет GPIO, не формирует PWM и не рассчитывает яркость.
-Эти задачи выполняют leds, soft_pwm и fade через led_controller.
+Эти задачи выполняют leds_gpio, soft_pwm и fade через led_controller.
 
 Основные свойства:
 
@@ -49,7 +49,7 @@ led_controller
                        pwm_led_output()
                               |
                               v
-                            leds
+                            leds_gpio
                               |
                               v
                              GPIO
@@ -66,7 +66,7 @@ led_controller
 | led_controller | Циклы одного LED, fade-in/fade-out и межцикловая пауза |
 | fade | Расчёт промежуточной скважности |
 | soft_pwm | Формирование PWM ON/OFF |
-| leds | Управление физическими GPIO |
+| leds_gpio | Управление физическими GPIO |
 
 led_sequence знает, какой LED и сколько циклов нужно выполнить.
 led_controller знает, как выполнить эти циклы.
@@ -308,7 +308,7 @@ inter_led_pause_duration_ms = inter_led_pause_ms
 Обычный порядок работы:
 
 ~~~ text
-leds_init()
+leds_gpio_init()
      |
      v
 nrfx_systick_init()
@@ -782,7 +782,7 @@ led_controller_process()
    PWM output callback
         |
         v
-       leds
+       leds_gpio
 ~~~
 
 led_sequence управляет только верхним уровнем.
@@ -1171,7 +1171,7 @@ SysTick является общим ресурсом приложения и д�
           +----------+----------+
                      |
                      v
-                   leds
+                   leds_gpio
                      |
                      v
                     GPIO
