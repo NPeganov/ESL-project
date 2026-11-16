@@ -33,6 +33,7 @@ SRC_FILES += \
   $(SDK_ROOT)/components/libraries/util/app_error_weak.c \
   $(SDK_ROOT)/components/libraries/strerror/nrf_strerror.c \
   $(PROJ_DIR)/main.c \
+  $(PROJ_DIR)/main_behavior.c \
   $(PROJ_DIR)/hardware/pwm/pwm.c \
   $(PROJ_DIR)/hardware/pwm/pwm_timing.c \
   $(PROJ_DIR)/hardware/pwm/pwm_sequence.c \
