@@ -7,7 +7,7 @@
 #include "nrfx_pwm.h"
 
 #include "pwm.h"
-#include "pwm_internal.h"
+#include "internal/pwm_internal.h"
 
 // PWM interrupt priority, matching the other application peripherals.
 #define PWM_IRQ_PRIORITY 6
