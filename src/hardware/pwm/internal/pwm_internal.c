@@ -5,29 +5,20 @@
 
 #include "pwm_internal.h"
 
-// The PWM period count must fit the 15-bit compare field.
+// Hardware limits for the 15-bit compare value and prescaled PWM clocks.
 #define PWM_TOP_VALUE_MIN 3
 #define PWM_TOP_VALUE_MAX 32767
-
-// The PWM peripheral derives its base clocks from a 16 MHz source.
 #define PWM_BASE_CLOCK_HZ 16000000
-
-// The slowest supported clock is 16 MHz divided by 128 (125 kHz).
 #define PWM_CLOCK_DIVIDER_MAX 128
 
-// Minimum frequency uses the slowest clock and largest period count.
-// Round up because a lower frequency would require an unsupported period count.
 #define PWM_FREQUENCY_MIN_HZ \
     ((PWM_BASE_CLOCK_HZ / PWM_CLOCK_DIVIDER_MAX + PWM_TOP_VALUE_MAX - 1) / PWM_TOP_VALUE_MAX)
-
-// Maximum frequency uses the fastest clock and smallest supported period count.
 #define PWM_FREQUENCY_MAX_HZ (PWM_BASE_CLOCK_HZ / PWM_TOP_VALUE_MIN)
 
-// Select the fastest clock that produces a valid period count.
-// A faster clock provides better duty-cycle resolution.
-// Clock settings are ordered from fastest to slowest.
+// Bit 15 selects falling-edge polarity for an active-low output.
+#define PWM_VALUE_POLARITY_MASK 0x8000
+
 bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing) {
-    // Reject frequencies outside the range supported by all clock and period settings.
     if (frequency_hz < PWM_FREQUENCY_MIN_HZ ||
         frequency_hz > PWM_FREQUENCY_MAX_HZ)
         return false;
@@ -35,28 +26,50 @@ bool pwm_timing_select(uint32_t frequency_hz, pwm_timing_t *timing) {
     uint32_t clock_frequency_hz = PWM_BASE_CLOCK_HZ;
     nrf_pwm_clk_t base_clock = NRF_PWM_CLK_16MHz;
 
+    // Clock enum values are ordered from fastest to slowest.
     while (base_clock <= NRF_PWM_CLK_125kHz) {
-        // Round the required period count to the nearest integer.
         uint32_t top_value =
             (clock_frequency_hz + frequency_hz / 2) / frequency_hz;
 
-        // Use the first clock whose period count fits the hardware limits.
         if (top_value >= PWM_TOP_VALUE_MIN && top_value <= PWM_TOP_VALUE_MAX) {
             timing->base_clock = base_clock;
             timing->top_value = (uint16_t)top_value;
-
-            // Store the frequency actually produced by the selected integer settings.
             timing->actual_frequency_hz =
                 (clock_frequency_hz + top_value / 2) / top_value;
-
             return true;
         }
 
-        // Try the next slower clock.
         base_clock = (nrf_pwm_clk_t)(base_clock + 1);
         clock_frequency_hz /= 2;
     }
 
     // No supported clock produced a valid period count.
     return false;
+}
+
+static uint16_t pwm_channel_value(
+    uint8_t duty,
+    uint16_t top_value,
+    bool active_low) {
+
+    uint32_t active_ticks =
+        ((uint32_t)duty * top_value + UINT8_MAX / 2) / UINT8_MAX;
+    uint16_t value = top_value - active_ticks;
+
+    if (active_low)
+        value |= PWM_VALUE_POLARITY_MASK;
+
+    return value;
+}
+
+void pwm_sequence_update(
+    nrf_pwm_values_individual_t *sequence,
+    volatile uint8_t const *duty,
+    uint16_t top_value,
+    bool const *active_low) {
+
+    sequence->channel_0 = pwm_channel_value(duty[0], top_value, active_low[0]);
+    sequence->channel_1 = pwm_channel_value(duty[1], top_value, active_low[1]);
+    sequence->channel_2 = pwm_channel_value(duty[2], top_value, active_low[2]);
+    sequence->channel_3 = pwm_channel_value(duty[3], top_value, active_low[3]);
 }

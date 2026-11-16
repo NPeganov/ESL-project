@@ -35,8 +35,7 @@ SRC_FILES += \
   $(PROJ_DIR)/main.c \
   $(PROJ_DIR)/main_behavior.c \
   $(PROJ_DIR)/hardware/pwm/pwm.c \
-  $(PROJ_DIR)/hardware/pwm/internal/pwm_timing.c \
-  $(PROJ_DIR)/hardware/pwm/internal/pwm_sequence.c \
+  $(PROJ_DIR)/hardware/pwm/internal/pwm_internal.c \
   $(PROJ_DIR)/hardware/leds_gpio/leds_gpio.c \
   $(PROJ_DIR)/leds/leds_pwm.c \
   $(PROJ_DIR)/leds/internal/interpol.c \
