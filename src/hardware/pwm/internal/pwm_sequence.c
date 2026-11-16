@@ -3,7 +3,7 @@
 
 #include "nrfx_pwm.h"
 
-#include "internal/pwm_internal.h"
+#include "pwm_internal.h"
 
 // Bit 15 selects falling-edge polarity for an active-low PWM output.
 #define PWM_VALUE_POLARITY_MASK 0x8000
