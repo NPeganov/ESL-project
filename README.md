@@ -14,9 +14,9 @@ To build and flash type `make clean && make && make dfu`.
 
 - [src/btn/btn.md](src/btn/btn.md) — логический уровень кнопки;
 - [src/btn/btn_hw.md](src/btn/btn_hw.md) — GPIO, GPIOTE и debounce;
-- [src/leds/led_sequence.md](src/leds/led_sequence.md) — последовательность LED;
-- [src/leds/led_controller.md](src/leds/led_controller.md) — управление фазами одного LED;
-- [src/leds/fade.md](src/leds/fade.md) — плавное изменение яркости;
-- [src/leds/soft_pwm.md](src/leds/soft_pwm.md) — программный PWM;
+- [src/leds_gpio/led_sequence.md](src/leds_gpio/led_sequence.md) — последовательность LED;
+- [src/leds_gpio/led_controller.md](src/leds_gpio/led_controller.md) — управление фазами одного LED;
+- [src/leds_gpio/fade.md](src/leds_gpio/fade.md) — плавное изменение яркости;
+- [src/leds_gpio/soft_pwm.md](src/leds_gpio/soft_pwm.md) — программный PWM;
 - [src/pwm/pwm.md](src/pwm/pwm.md) — универсальная аппаратная PWM-система;
 - [src/log/log.md](src/log/log.md) — прикладной интерфейс логирования и USB backend.
