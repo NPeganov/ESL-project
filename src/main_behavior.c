@@ -64,10 +64,22 @@ bool main_behavior_init(void) {
     if (!seq_init())
         return false;
 
-    if (!seq_start(YELLOW_LED, &m_yellow_config, yellow_callback, NULL))
+    if (!seq_start(
+            YELLOW_LED,
+            &m_yellow_config,
+            SEQ_START_FROM_STEP,
+            m_yellow_steps[0].from,
+            yellow_callback,
+            NULL))
         return false;
 
-    if (!seq_start(RGB_LED, &m_rgb_config, rgb_value_callback, NULL))
+    if (!seq_start(
+            RGB_LED,
+            &m_rgb_config,
+            SEQ_START_FROM_STEP,
+            m_rgb_steps[0].from,
+            rgb_value_callback,
+            NULL))
         return false;
 
     return true;
@@ -81,7 +93,13 @@ bool main_behavior_toggle_yellow(void) {
 
     // seq_start() replaces the current sequence and starts the selected route
     // from its explicitly defined first step.
-    return seq_start(YELLOW_LED, config, yellow_callback, NULL);
+    return seq_start(
+        YELLOW_LED,
+        config,
+        SEQ_START_FROM_STEP,
+        config->steps[0].from,
+        yellow_callback,
+        NULL);
 }
 
 static void yellow_callback(uint16_t value, void *context) {

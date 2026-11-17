@@ -10,6 +10,11 @@ typedef enum {
 } seq_led_id;
 
 typedef enum {
+    SEQ_START_FROM_STEP,
+    SEQ_START_CURRENT
+} seq_start_mode_t;
+
+typedef enum {
     SEQ_STATE_IDLE,
     SEQ_STATE_RUNNING,
     SEQ_STATE_PAUSED
@@ -34,6 +39,8 @@ bool seq_init(void);
 bool seq_start(
     seq_led_id id,
     seq_config_t const *config,
+    seq_start_mode_t start_mode,
+    uint16_t current_value,
     seq_callback_t callback,
     void *context);
 

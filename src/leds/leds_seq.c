@@ -21,6 +21,10 @@ typedef struct {
 
     uint16_t step_index;
 
+    // Start value is used only while the first step is active.
+    uint16_t start_value;
+    bool start_value_pending;
+
     // Start time of the current step in app_timer ticks.
     uint32_t start_time;
 
@@ -73,12 +77,18 @@ bool seq_init(void) {
 bool seq_start(
     seq_led_id id,
     seq_config_t const *config,
+    seq_start_mode_t start_mode,
+    uint16_t current_value,
     seq_callback_t callback,
     void *context) {
     seq_executor_t *executor = executor_get(id);
 
     if (!m_initialized || executor == NULL ||
         !config_is_valid(config) || callback == NULL)
+        return false;
+
+    if (start_mode != SEQ_START_FROM_STEP &&
+        start_mode != SEQ_START_CURRENT)
         return false;
 
     if (config->repeat && !config_has_timed_step(config))
@@ -91,6 +101,8 @@ bool seq_start(
     executor->callback = callback;
     executor->context = context;
     executor->step_index = 0;
+    executor->start_value = current_value;
+    executor->start_value_pending = (start_mode == SEQ_START_CURRENT);
     executor->start_time = app_timer_cnt_get();
     executor->elapsed_time = 0;
     executor->last_value_valid = false;
@@ -216,13 +228,20 @@ static void executor_process(seq_executor_t *executor) {
 
         executor_set_value(
             executor,
-            interpol_linear(step->from, step->to, elapsed, duration));
+            interpol_linear(
+                executor->start_value_pending ? executor->start_value : step->from,
+                step->to,
+                elapsed,
+                duration));
 
         return;
     }
 }
 
 static bool executor_advance(seq_executor_t *executor) {
+    if (executor->step_index == 0)
+        executor->start_value_pending = false;
+
     executor->step_index++;
 
     if (executor->step_index < executor->config.step_count)
@@ -253,6 +272,8 @@ static void executor_clear(seq_executor_t *executor) {
     executor->callback = NULL;
     executor->context = NULL;
     executor->step_index = 0;
+    executor->start_value = 0;
+    executor->start_value_pending = false;
     executor->start_time = 0;
     executor->elapsed_time = 0;
     executor->last_value_valid = false;
