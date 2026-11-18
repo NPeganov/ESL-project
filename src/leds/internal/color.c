@@ -32,36 +32,12 @@ color_rgb_t color_hsv_to_rgb(color_hsv_t hsv) {
         (value * (100 - (hsv.saturation * (360 - fraction) + 180) / 360) + 50) / 100);
 
     switch (sector) {
-        case 0:
-            rgb.red = value;
-            rgb.green = t;
-            rgb.blue = p;
-            break;
-        case 1:
-            rgb.red = q;
-            rgb.green = value;
-            rgb.blue = p;
-            break;
-        case 2:
-            rgb.red = p;
-            rgb.green = value;
-            rgb.blue = t;
-            break;
-        case 3:
-            rgb.red = p;
-            rgb.green = q;
-            rgb.blue = value;
-            break;
-        case 4:
-            rgb.red = t;
-            rgb.green = p;
-            rgb.blue = value;
-            break;
-        default:
-            rgb.red = value;
-            rgb.green = p;
-            rgb.blue = q;
-            break;
+        case 0: rgb.red = value; rgb.green = t; rgb.blue = p; break;
+        case 1: rgb.red = q; rgb.green = value; rgb.blue = p; break;
+        case 2: rgb.red = p; rgb.green = value; rgb.blue = t; break;
+        case 3: rgb.red = p; rgb.green = q; rgb.blue = value; break;
+        case 4: rgb.red = t; rgb.green = p; rgb.blue = value; break;
+        default: rgb.red = value; rgb.green = p; rgb.blue = q; break;
     }
 
     return rgb;
@@ -72,14 +48,10 @@ color_hsv_t color_rgb_to_hsv(color_rgb_t rgb) {
     uint8_t max = rgb.red;
     uint8_t min = rgb.red;
 
-    if (rgb.green > max)
-        max = rgb.green;
-    if (rgb.blue > max)
-        max = rgb.blue;
-    if (rgb.green < min)
-        min = rgb.green;
-    if (rgb.blue < min)
-        min = rgb.blue;
+    if (rgb.green > max) max = rgb.green;
+    if (rgb.blue > max) max = rgb.blue;
+    if (rgb.green < min) min = rgb.green;
+    if (rgb.blue < min) min = rgb.blue;
 
     uint8_t delta = max - min;
 
