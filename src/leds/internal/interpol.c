@@ -88,21 +88,21 @@ static uint16_t interpol_bounce(
 }
 
 uint16_t interpol_value(
-    seq_scale_t scale,
+    sequencer_scale_t scale,
     uint16_t from,
     uint16_t to,
     uint16_t start_value,
     uint32_t elapsed,
     uint32_t duration) {
     switch (scale) {
-        case SEQ_SCALE_CYCLIC:
+        case SEQUENCER_SCALE_CYCLIC:
             return interpol_hue(from, start_value, elapsed, duration);
 
-        case SEQ_SCALE_BOUNCE:
+        case SEQUENCER_SCALE_BOUNCE:
             return interpol_bounce(
                 from, to, start_value, elapsed, duration);
 
-        case SEQ_SCALE_LINEAR:
+        case SEQUENCER_SCALE_LINEAR:
         default:
             return interpol_linear(start_value, to, elapsed, duration);
     }

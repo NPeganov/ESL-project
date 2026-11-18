@@ -3,10 +3,10 @@
 
 #include <stdint.h>
 
-#include "../leds_seq.h"
+#include "../leds_sequencer.h"
 
 uint16_t interpol_value(
-    seq_scale_t scale,
+    sequencer_scale_t scale,
     uint16_t from,
     uint16_t to,
     uint16_t start_value,
