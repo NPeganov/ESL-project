@@ -7,23 +7,23 @@
 
 #include "main_behavior.h"
 
-// Yellow LED: a 6-second brightness cycle with slow ramps.
+// Yellow LED: slow breathing with a four-second period.
 static seq_step_t const m_yellow_steps[] = {
-    { 0, 100, 2000 },
-    { 100, 100, 1000 },
-    { 100, 0, 2000 },
-    { 0, 0, 1000 }
+    { 0, 100, 1500 },
+    { 100, 100, 500 },
+    { 100, 0, 1500 },
+    { 0, 0, 500 }
 };
 
-// Alternate yellow sequence: fast ramps and long holds.
+// Alternate yellow sequence: fast blinking with a half-second period.
 static seq_step_t const m_yellow_alternate_steps[] = {
-    { 0, 100, 500 },
-    { 100, 100, 2000 },
-    { 100, 0, 500 },
-    { 0, 0, 2000 }
+    { 0, 100, 80 },
+    { 100, 100, 170 },
+    { 100, 0, 80 },
+    { 0, 0, 170 }
 };
 
-// RGB LED keeps its independent 6-second brightness cycle.
+// RGB LED runs an independent six-second brightness cycle.
 static seq_step_t const m_rgb_steps[] = {
     { 100, 100, 1000 },
     { 100, 0, 2000 },
@@ -91,8 +91,7 @@ bool main_behavior_toggle_yellow(void) {
     m_yellow_alternate = !m_yellow_alternate;
     config = m_yellow_alternate ? &m_yellow_alternate_config : &m_yellow_config;
 
-    // seq_start() replaces the current sequence and starts the selected route
-    // from its explicitly defined first step.
+    // Replace the current yellow sequence from its explicitly defined first step.
     return seq_start(
         YELLOW_LED,
         config,
