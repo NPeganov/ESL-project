@@ -15,10 +15,14 @@ typedef enum
     BTN_EVENT_DOUBLE_PRESS
 } btn_event_t;
 
-// Initializes the clock, timer subsystem and button handling.
-void btn_init(void);
+// Button event handler. It is called in interrupt context.
+typedef void (*btn_event_handler_t)(btn_event_t event);
 
-// Returns the next pending event, or BTN_EVENT_NONE if the queue is empty.
-btn_event_t btn_event_take(void);
+// Configure button handling and register its event handler.
+// timer_service_init() must be called first.
+void btn_init(btn_event_handler_t event_handler);
+
+// Enable GPIO events and start initial button-state detection.
+void btn_start(void);
 
 #endif

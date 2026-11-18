@@ -5,45 +5,47 @@
 
 #include "btn/btn.h"
 #include "main_behavior.h"
+#include "timer_service/timer_service.h"
+
+static volatile bool m_single_press_pending;
+static volatile uint16_t m_single_press_timeout_ms;
+
+static void button_event_handler(btn_event_t event);
 
 int main(void) {
-    bool single_press_pending = false;
-    uint16_t single_press_timeout_ms = 0;
-
     nrfx_systick_init();
 
-    // btn_init() initializes LFCLK and the shared app_timer framework.
-    btn_init();
+    if (!timer_service_init())
+        while (1) nrfx_systick_delay_ms(1000);
 
     if (!main_behavior_init())
         while (1) nrfx_systick_delay_ms(1000);
 
+    btn_init(button_event_handler);
+    btn_start();
+
     while (1) {
-        btn_event_t event;
-
-        // A double click also produces SINGLE_PRESS events. Delay the single
-        // action until the double-press window has expired.
-        while ((event = btn_event_take()) != BTN_EVENT_NONE) {
-            if (event == BTN_EVENT_SINGLE_PRESS) {
-                single_press_pending = true;
-                // Must exceed BTN_DOUBLE_PRESS_TIME_MS in btn.c.
-                single_press_timeout_ms = 1100;
-            } else if (event == BTN_EVENT_DOUBLE_PRESS) {
-                single_press_pending = false;
-                single_press_timeout_ms = 0;
-            }
-        }
-
-        if (single_press_pending) {
-            if (single_press_timeout_ms <= 10) {
-                single_press_pending = false;
+        // Delay the single action so a following double press can cancel it.
+        if (m_single_press_pending) {
+            if (m_single_press_timeout_ms <= 10) {
+                m_single_press_pending = false;
 
                 if (!main_behavior_toggle_yellow())
                     while (1) nrfx_systick_delay_ms(1000);
             } else
-                single_press_timeout_ms -= 10;
+                m_single_press_timeout_ms -= 10;
         }
 
         nrfx_systick_delay_ms(10);
+    }
+}
+
+static void button_event_handler(btn_event_t event) {
+    if (event == BTN_EVENT_SINGLE_PRESS) {
+        m_single_press_pending = true;
+        m_single_press_timeout_ms = 1100;
+    } else if (event == BTN_EVENT_DOUBLE_PRESS) {
+        m_single_press_pending = false;
+        m_single_press_timeout_ms = 0;
     }
 }

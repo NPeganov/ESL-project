@@ -45,6 +45,7 @@ SRC_FILES += \
   $(PROJ_DIR)/leds_soft/fade.c \
   $(PROJ_DIR)/leds_soft/led_controller.c \
   $(PROJ_DIR)/leds_soft/led_sequence.c \
+  $(PROJ_DIR)/timer_service/timer_service.c \
   $(PROJ_DIR)/btn/btn.c \
   $(PROJ_DIR)/btn/btn_hw.c \
   $(PROJ_DIR)/log/log.c \
