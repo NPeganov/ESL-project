@@ -42,10 +42,6 @@ SRC_FILES += \
   $(PROJ_DIR)/leds/internal/interpol.c \
   $(PROJ_DIR)/leds/internal/color.c \
   $(PROJ_DIR)/leds/leds_seq.c \
-  $(PROJ_DIR)/leds_soft/soft_pwm.c \
-  $(PROJ_DIR)/leds_soft/fade.c \
-  $(PROJ_DIR)/leds_soft/led_controller.c \
-  $(PROJ_DIR)/leds_soft/led_sequence.c \
   $(PROJ_DIR)/timer_service/timer_service.c \
   $(PROJ_DIR)/btn/btn.c \
   $(PROJ_DIR)/btn/btn_hw.c \
