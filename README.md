@@ -1,23 +1,29 @@
 # ESL-project
-Repository for the main ESL-project
 
-To build and flash type `make clean && make && make dfu`.
+Repository for the ESL-project.
 
+Build and flash:
+
+```sh
+make clean && make && make dfu
+```
 
 ## Documentation
 
-Основной архитектурный документ проекта:
+Документация размещена рядом с соответствующими модулями.
 
-- [src/main.md](src/main.md) — схема взаимодействия и подробное описание логики всех основных модулей и main loop.
+### Hardware PWM and LEDs
 
-Документация отдельных модулей находится рядом с их исходным кодом:
+- [Аппаратный PWM](src/hardware/pwm/pwm.md) — универсальный драйвер PWM0, выбор таймингов, полярность, EasyDMA и обновление duty.
+- [LED modules](src/leds/README.md) — структура актуальной LED-подсистемы.
+- [leds_pwm](src/leds/leds_pwm.md) — управление жёлтым и RGB-светодиодами, RGB/HSV API и состояние.
+- [color](src/leds/internal/color.md) — внутренние целочисленные преобразования RGB/HSV.
+- [leds_gpio](src/leds/leds_gpio.md) — прямое управление GPIO.
+- [Legacy software LED modules](src/leds_soft/README.md) — сохранённая документация прежней реализации soft PWM, fade и LED sequence.
 
-- [src/btn/btn.md](src/btn/btn.md) — логический уровень кнопки;
-- [src/btn/btn_hw.md](src/btn/btn_hw.md) — GPIO, GPIOTE и debounce;
-- [src/leds_gpio/led_sequence.md](src/leds_gpio/led_sequence.md) — последовательность LED;
-- [src/leds_gpio/led_controller.md](src/leds_gpio/led_controller.md) — управление фазами одного LED;
-- [src/leds_gpio/fade.md](src/leds_gpio/fade.md) — плавное изменение яркости;
-- [src/leds_gpio/soft_pwm.md](src/leds_gpio/soft_pwm.md) — программный PWM;
-- [src/hardware/pwm/pwm.md](src/hardware/pwm/pwm.md) — универсальная аппаратная PWM-система;
-- [src/leds/leds_pwm.md](src/leds/leds_pwm.md) — высокоуровневое управление жёлтым и RGB светодиодами через аппаратный PWM;
-- [src/log/log.md](src/log/log.md) — прикладной интерфейс логирования и USB backend.
+### Other modules
+
+- [Button](src/btn/README.md) — документация логического и аппаратного уровней кнопки.
+- [Logging](src/log/README.md) — прикладной интерфейс логирования и USB backend.
+
+Точка входа `main.c` в этой ветке является демонстрационной программой и отдельно не документируется.

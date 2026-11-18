@@ -1,7 +1,7 @@
 #include <stddef.h>
 
 #include "led_controller.h"
-#include "hardware/leds_gpio/leds_gpio.h"
+#include "leds/leds_gpio.h"
 #include "log/log.h"
 
 #define LED_CONTROLLER_PAUSE_UPDATE_INTERVAL_MS 1

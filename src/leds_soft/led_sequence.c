@@ -3,7 +3,7 @@
 
 #include "nrfx_systick.h"
 
-#include "hardware/leds_gpio/leds_gpio.h"
+#include "leds/leds_gpio.h"
 #include "led_sequence.h"
 
 #define INTER_LED_PAUSE_UPDATE_INTERVAL_MS   1
