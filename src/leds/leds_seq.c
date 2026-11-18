@@ -100,7 +100,8 @@ bool seq_start(
          config->steps[0].duration_ms == 0))
         return false;
 
-    if (config->scale == SEQ_SCALE_CYCLIC && current_value >= 360)
+    if (config->scale == SEQ_SCALE_CYCLIC &&
+        start_mode == SEQ_START_CURRENT && current_value >= 360)
         return false;
 
     if (config->scale == SEQ_SCALE_BOUNCE &&
