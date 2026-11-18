@@ -4,7 +4,7 @@
 
 #include "leds_control.h"
 #include "leds_pwm.h"
-#include "leds_seq.h"
+#include "leds_sequencer.h"
 
 // Full Hue rotation and full S/V sweep durations.
 #define HUE_CYCLE_DURATION_MS 10000
@@ -14,42 +14,42 @@
 #define YELLOW_SLOW_BLINK_MS 1000
 #define YELLOW_FAST_BLINK_MS 150
 
-static seq_step_t const m_hue_steps[] = {
+static sequencer_step_t const m_hue_steps[] = {
     { 0, 360, HUE_CYCLE_DURATION_MS }
 };
 
-static seq_step_t const m_hsv_value_steps[] = {
+static sequencer_step_t const m_hsv_value_steps[] = {
     { 0, 100, HSV_VALUE_SWEEP_DURATION_MS }
 };
 
-static seq_step_t const m_yellow_off_steps[] = {
+static sequencer_step_t const m_yellow_off_steps[] = {
     { 0, 0, 0 }
 };
 
-static seq_step_t const m_yellow_on_steps[] = {
+static sequencer_step_t const m_yellow_on_steps[] = {
     { 0, 100, 0 }
 };
 
-static seq_step_t const m_yellow_slow_steps[] = {
+static sequencer_step_t const m_yellow_slow_steps[] = {
     { 0, 100, 0 },
     { 100, 100, YELLOW_SLOW_BLINK_MS },
     { 100, 0, 0 },
     { 0, 0, YELLOW_SLOW_BLINK_MS }
 };
 
-static seq_step_t const m_yellow_fast_steps[] = {
+static sequencer_step_t const m_yellow_fast_steps[] = {
     { 0, 100, 0 },
     { 100, 100, YELLOW_FAST_BLINK_MS },
     { 100, 0, 0 },
     { 0, 0, YELLOW_FAST_BLINK_MS }
 };
 
-static seq_config_t m_hue_config;
-static seq_config_t m_hsv_value_config;
-static seq_config_t m_yellow_off_config;
-static seq_config_t m_yellow_on_config;
-static seq_config_t m_yellow_slow_config;
-static seq_config_t m_yellow_fast_config;
+static sequencer_config_t m_hue_config;
+static sequencer_config_t m_hsv_value_config;
+static sequencer_config_t m_yellow_off_config;
+static sequencer_config_t m_yellow_on_config;
+static sequencer_config_t m_yellow_slow_config;
+static sequencer_config_t m_yellow_fast_config;
 
 static bool m_initialized;
 static bool m_active_parameter_valid;
@@ -68,38 +68,38 @@ bool leds_control_init(void) {
     if (!leds_pwm_init())
         return false;
 
-    if (!seq_init())
+    if (!sequencer_init())
         return false;
 
     m_hue_config.steps = m_hue_steps;
     m_hue_config.step_count = sizeof(m_hue_steps) / sizeof(m_hue_steps[0]);
     m_hue_config.repeat = true;
-    m_hue_config.scale = SEQ_SCALE_CYCLIC;
+    m_hue_config.scale = SEQUENCER_SCALE_CYCLIC;
 
     m_hsv_value_config.steps = m_hsv_value_steps;
     m_hsv_value_config.step_count = sizeof(m_hsv_value_steps) / sizeof(m_hsv_value_steps[0]);
     m_hsv_value_config.repeat = true;
-    m_hsv_value_config.scale = SEQ_SCALE_BOUNCE;
+    m_hsv_value_config.scale = SEQUENCER_SCALE_BOUNCE;
 
     m_yellow_off_config.steps = m_yellow_off_steps;
     m_yellow_off_config.step_count = sizeof(m_yellow_off_steps) / sizeof(m_yellow_off_steps[0]);
     m_yellow_off_config.repeat = false;
-    m_yellow_off_config.scale = SEQ_SCALE_LINEAR;
+    m_yellow_off_config.scale = SEQUENCER_SCALE_LINEAR;
 
     m_yellow_on_config.steps = m_yellow_on_steps;
     m_yellow_on_config.step_count = sizeof(m_yellow_on_steps) / sizeof(m_yellow_on_steps[0]);
     m_yellow_on_config.repeat = false;
-    m_yellow_on_config.scale = SEQ_SCALE_LINEAR;
+    m_yellow_on_config.scale = SEQUENCER_SCALE_LINEAR;
 
     m_yellow_slow_config.steps = m_yellow_slow_steps;
     m_yellow_slow_config.step_count = sizeof(m_yellow_slow_steps) / sizeof(m_yellow_slow_steps[0]);
     m_yellow_slow_config.repeat = true;
-    m_yellow_slow_config.scale = SEQ_SCALE_LINEAR;
+    m_yellow_slow_config.scale = SEQUENCER_SCALE_LINEAR;
 
     m_yellow_fast_config.steps = m_yellow_fast_steps;
     m_yellow_fast_config.step_count = sizeof(m_yellow_fast_steps) / sizeof(m_yellow_fast_steps[0]);
     m_yellow_fast_config.repeat = true;
-    m_yellow_fast_config.scale = SEQ_SCALE_LINEAR;
+    m_yellow_fast_config.scale = SEQUENCER_SCALE_LINEAR;
 
     m_active_parameter_valid = false;
     m_initialized = true;
@@ -123,7 +123,7 @@ void leds_control_get_hsv(
 
 bool leds_control_start_hsv_change(
     leds_control_hsv_parameter_t parameter) {
-    seq_config_t const *config;
+    sequencer_config_t const *config;
     uint16_t hue;
     uint8_t saturation;
     uint8_t value;
@@ -138,12 +138,12 @@ bool leds_control_start_hsv_change(
         return false;
 
     if (m_active_parameter_valid && m_active_parameter == parameter) {
-        seq_state_t state = seq_get_state(RGB_LED);
+        sequencer_state_t state = sequencer_get_state(SEQUENCER_RGB_LED);
 
-        if (state == SEQ_STATE_RUNNING) return true;
+        if (state == SEQUENCER_STATE_RUNNING) return true;
 
-        if (state == SEQ_STATE_PAUSED) {
-            seq_resume(RGB_LED);
+        if (state == SEQUENCER_STATE_PAUSED) {
+            sequencer_resume(SEQUENCER_RGB_LED);
             return true;
         }
     }
@@ -173,10 +173,10 @@ bool leds_control_start_hsv_change(
             return false;
     }
 
-    if (!seq_start(
-            RGB_LED,
+    if (!sequencer_start(
+            SEQUENCER_RGB_LED,
             config,
-            SEQ_START_CURRENT,
+            SEQUENCER_START_CURRENT,
             current_value,
             rgb_value_callback,
             context))
@@ -190,12 +190,12 @@ bool leds_control_start_hsv_change(
 
 void leds_control_stop_hsv_change(void) {
     if (m_initialized)
-        seq_pause(RGB_LED);
+        sequencer_pause(SEQUENCER_RGB_LED);
 }
 
 bool leds_control_set_yellow_pattern(
     leds_control_yellow_pattern_t pattern) {
-    seq_config_t const *config;
+    sequencer_config_t const *config;
 
     if (!m_initialized) return false;
 
@@ -220,10 +220,10 @@ bool leds_control_set_yellow_pattern(
             return false;
     }
 
-    return seq_start(
-        YELLOW_LED,
+    return sequencer_start(
+        SEQUENCER_YELLOW_LED,
         config,
-        SEQ_START_FROM_STEP,
+        SEQUENCER_START_FROM_STEP,
         config->steps[0].from,
         yellow_callback,
         NULL);

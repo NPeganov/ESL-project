@@ -8,15 +8,15 @@
 #include "nrf_assert.h"
 
 #include "internal/interpol.h"
-#include "leds_seq.h"
+#include "leds_sequencer.h"
 
-#define SEQ_TIMER_INTERVAL_MS 10
+#define SEQUENCER_TIMER_INTERVAL_MS 10
 
 typedef struct {
-    seq_state_t state;
+    sequencer_state_t state;
 
-    seq_config_t config;
-    seq_callback_t callback;
+    sequencer_config_t config;
+    sequencer_callback_t callback;
     void *context;
 
     uint16_t step_index;
@@ -33,26 +33,26 @@ typedef struct {
 
     uint16_t last_value;
     bool last_value_valid;
-} seq_executor_t;
+} executor_t;
 
 // Each LED system has its own executor and can run independently.
-static seq_executor_t m_yellow_executor;
-static seq_executor_t m_rgb_executor;
+static executor_t m_yellow_executor;
+static executor_t m_rgb_executor;
 
 static bool m_initialized;
 
 APP_TIMER_DEF(m_timer);
 
-static seq_executor_t *executor_get(seq_led_id id);
-static bool config_is_valid(seq_config_t const *config);
-static bool config_has_timed_step(seq_config_t const *config);
+static executor_t *executor_get(sequencer_led_id_t id);
+static bool config_is_valid(sequencer_config_t const *config);
+static bool config_has_timed_step(sequencer_config_t const *config);
 static void timer_callback(void *p_context);
-static void executor_process(seq_executor_t *executor);
-static bool executor_advance(seq_executor_t *executor);
-static void executor_set_value(seq_executor_t *executor, uint16_t value);
-static void executor_clear(seq_executor_t *executor);
+static void executor_process(executor_t *executor);
+static bool executor_advance(executor_t *executor);
+static void executor_set_value(executor_t *executor, uint16_t value);
+static void executor_clear(executor_t *executor);
 
-bool seq_init(void) {
+bool sequencer_init(void) {
     ASSERT(!m_initialized);
 
     if (m_initialized) return false;
@@ -65,7 +65,7 @@ bool seq_init(void) {
 
     if (app_timer_start(
             m_timer,
-            APP_TIMER_TICKS(SEQ_TIMER_INTERVAL_MS),
+            APP_TIMER_TICKS(SEQUENCER_TIMER_INTERVAL_MS),
             NULL) != NRF_SUCCESS)
         return false;
 
@@ -74,38 +74,38 @@ bool seq_init(void) {
     return true;
 }
 
-bool seq_start(
-    seq_led_id id,
-    seq_config_t const *config,
-    seq_start_mode_t start_mode,
+bool sequencer_start(
+    sequencer_led_id_t id,
+    sequencer_config_t const *config,
+    sequencer_start_mode_t start_mode,
     uint16_t current_value,
-    seq_callback_t callback,
+    sequencer_callback_t callback,
     void *context) {
-    seq_executor_t *executor = executor_get(id);
+    executor_t *executor = executor_get(id);
 
     if (!m_initialized || executor == NULL ||
         !config_is_valid(config) || callback == NULL)
         return false;
 
-    if (start_mode != SEQ_START_FROM_STEP &&
-        start_mode != SEQ_START_CURRENT)
+    if (start_mode != SEQUENCER_START_FROM_STEP &&
+        start_mode != SEQUENCER_START_CURRENT)
         return false;
 
     if (config->repeat && !config_has_timed_step(config))
         return false;
 
-    if ((config->scale == SEQ_SCALE_CYCLIC ||
-         config->scale == SEQ_SCALE_BOUNCE) &&
+    if ((config->scale == SEQUENCER_SCALE_CYCLIC ||
+         config->scale == SEQUENCER_SCALE_BOUNCE) &&
         (!config->repeat || config->step_count != 1 ||
          config->steps[0].duration_ms == 0))
         return false;
 
-    if (config->scale == SEQ_SCALE_CYCLIC &&
-        start_mode == SEQ_START_CURRENT && current_value >= 360)
+    if (config->scale == SEQUENCER_SCALE_CYCLIC &&
+        start_mode == SEQUENCER_START_CURRENT && current_value >= 360)
         return false;
 
-    if (config->scale == SEQ_SCALE_BOUNCE &&
-        start_mode == SEQ_START_CURRENT &&
+    if (config->scale == SEQUENCER_SCALE_BOUNCE &&
+        start_mode == SEQUENCER_START_CURRENT &&
         (current_value < config->steps[0].from ||
          current_value > config->steps[0].to))
         return false;
@@ -118,11 +118,11 @@ bool seq_start(
     executor->context = context;
     executor->step_index = 0;
     executor->start_value = current_value;
-    executor->start_value_pending = (start_mode == SEQ_START_CURRENT);
+    executor->start_value_pending = (start_mode == SEQUENCER_START_CURRENT);
     executor->start_time = app_timer_cnt_get();
     executor->elapsed_time = 0;
     executor->last_value_valid = false;
-    executor->state = SEQ_STATE_RUNNING;
+    executor->state = SEQUENCER_STATE_RUNNING;
 
     executor_process(executor);
 
@@ -131,45 +131,45 @@ bool seq_start(
     return true;
 }
 
-void seq_pause(seq_led_id id) {
-    seq_executor_t *executor = executor_get(id);
+void sequencer_pause(sequencer_led_id_t id) {
+    executor_t *executor = executor_get(id);
 
     if (executor == NULL) return;
 
     CRITICAL_REGION_ENTER();
 
-    if (executor->state == SEQ_STATE_RUNNING) {
+    if (executor->state == SEQUENCER_STATE_RUNNING) {
         executor->elapsed_time = app_timer_cnt_diff_compute(
             app_timer_cnt_get(),
             executor->start_time);
 
-        executor->state = SEQ_STATE_PAUSED;
+        executor->state = SEQUENCER_STATE_PAUSED;
     }
 
     CRITICAL_REGION_EXIT();
 }
 
-void seq_resume(seq_led_id id) {
-    seq_executor_t *executor = executor_get(id);
+void sequencer_resume(sequencer_led_id_t id) {
+    executor_t *executor = executor_get(id);
 
     if (executor == NULL) return;
 
     CRITICAL_REGION_ENTER();
 
-    if (executor->state == SEQ_STATE_PAUSED) {
+    if (executor->state == SEQUENCER_STATE_PAUSED) {
         executor->start_time = app_timer_cnt_get() - executor->elapsed_time;
-        executor->state = SEQ_STATE_RUNNING;
+        executor->state = SEQUENCER_STATE_RUNNING;
     }
 
     CRITICAL_REGION_EXIT();
 }
 
-seq_state_t seq_get_state(seq_led_id id) {
-    seq_executor_t *executor = executor_get(id);
+sequencer_state_t sequencer_get_state(sequencer_led_id_t id) {
+    executor_t *executor = executor_get(id);
 
-    seq_state_t state;
+    sequencer_state_t state;
 
-    if (executor == NULL) return SEQ_STATE_IDLE;
+    if (executor == NULL) return SEQUENCER_STATE_IDLE;
 
     CRITICAL_REGION_ENTER();
     state = executor->state;
@@ -178,39 +178,39 @@ seq_state_t seq_get_state(seq_led_id id) {
     return state;
 }
 
-static seq_executor_t *executor_get(seq_led_id id) {
+static executor_t *executor_get(sequencer_led_id_t id) {
     switch (id) {
-        case YELLOW_LED:
+        case SEQUENCER_YELLOW_LED:
             return &m_yellow_executor;
-        case RGB_LED:
+        case SEQUENCER_RGB_LED:
             return &m_rgb_executor;
         default:
             return NULL;
     }
 }
 
-static bool config_is_valid(seq_config_t const *config) {
+static bool config_is_valid(sequencer_config_t const *config) {
     if (config == NULL) return false;
     if (config->steps == NULL) return false;
     if (config->step_count == 0) return false;
 
-    if (config->scale != SEQ_SCALE_LINEAR &&
-        config->scale != SEQ_SCALE_CYCLIC &&
-        config->scale != SEQ_SCALE_BOUNCE)
+    if (config->scale != SEQUENCER_SCALE_LINEAR &&
+        config->scale != SEQUENCER_SCALE_CYCLIC &&
+        config->scale != SEQUENCER_SCALE_BOUNCE)
         return false;
 
-    if (config->scale == SEQ_SCALE_CYCLIC &&
+    if (config->scale == SEQUENCER_SCALE_CYCLIC &&
         (config->steps[0].from != 0 || config->steps[0].to != 360))
         return false;
 
-    if (config->scale == SEQ_SCALE_BOUNCE &&
+    if (config->scale == SEQUENCER_SCALE_BOUNCE &&
         config->steps[0].from >= config->steps[0].to)
         return false;
 
     return true;
 }
 
-static bool config_has_timed_step(seq_config_t const *config) {
+static bool config_has_timed_step(sequencer_config_t const *config) {
     for (uint16_t i = 0; i < config->step_count; i++)
         if (config->steps[i].duration_ms > 0) return true;
 
@@ -224,21 +224,21 @@ static void timer_callback(void *p_context) {
     executor_process(&m_rgb_executor);
 }
 
-static void executor_process(seq_executor_t *executor) {
+static void executor_process(executor_t *executor) {
     uint32_t now;
 
-    if (executor->state != SEQ_STATE_RUNNING) return;
+    if (executor->state != SEQUENCER_STATE_RUNNING) return;
 
     now = app_timer_cnt_get();
 
-    while (executor->state == SEQ_STATE_RUNNING) {
-        seq_step_t const *step = &executor->config.steps[executor->step_index];
+    while (executor->state == SEQUENCER_STATE_RUNNING) {
+        sequencer_step_t const *step = &executor->config.steps[executor->step_index];
         uint32_t duration = APP_TIMER_TICKS(step->duration_ms);
         uint32_t elapsed = app_timer_cnt_diff_compute(now, executor->start_time);
         uint16_t start_value = executor->start_value_pending ?
             executor->start_value : step->from;
 
-        if (executor->config.scale == SEQ_SCALE_BOUNCE) {
+        if (executor->config.scale == SEQUENCER_SCALE_BOUNCE) {
             executor_set_value(
                 executor,
                 interpol_value(
@@ -262,7 +262,7 @@ static void executor_process(seq_executor_t *executor) {
         }
 
         if (elapsed >= duration) {
-            if (executor->config.scale == SEQ_SCALE_CYCLIC)
+            if (executor->config.scale == SEQUENCER_SCALE_CYCLIC)
                 executor_set_value(
                     executor,
                     interpol_value(
@@ -297,7 +297,7 @@ static void executor_process(seq_executor_t *executor) {
     }
 }
 
-static bool executor_advance(seq_executor_t *executor) {
+static bool executor_advance(executor_t *executor) {
     if (executor->step_index == 0)
         executor->start_value_pending = false;
 
@@ -316,7 +316,7 @@ static bool executor_advance(seq_executor_t *executor) {
     return true;
 }
 
-static void executor_set_value(seq_executor_t *executor, uint16_t value) {
+static void executor_set_value(executor_t *executor, uint16_t value) {
     if (executor->last_value_valid && executor->last_value == value) return;
 
     executor->last_value = value;
@@ -325,9 +325,9 @@ static void executor_set_value(seq_executor_t *executor, uint16_t value) {
     executor->callback(value, executor->context);
 }
 
-static void executor_clear(seq_executor_t *executor) {
-    executor->state = SEQ_STATE_IDLE;
-    executor->config = (seq_config_t){ 0 };
+static void executor_clear(executor_t *executor) {
+    executor->state = SEQUENCER_STATE_IDLE;
+    executor->config = (sequencer_config_t){ 0 };
     executor->callback = NULL;
     executor->context = NULL;
     executor->step_index = 0;
