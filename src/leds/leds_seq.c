@@ -94,6 +94,21 @@ bool seq_start(
     if (config->repeat && !config_has_timed_step(config))
         return false;
 
+    if ((config->scale == SEQ_SCALE_CYCLIC ||
+         config->scale == SEQ_SCALE_BOUNCE) &&
+        (!config->repeat || config->step_count != 1 ||
+         config->steps[0].duration_ms == 0))
+        return false;
+
+    if (config->scale == SEQ_SCALE_CYCLIC && current_value >= 360)
+        return false;
+
+    if (config->scale == SEQ_SCALE_BOUNCE &&
+        start_mode == SEQ_START_CURRENT &&
+        (current_value < config->steps[0].from ||
+         current_value > config->steps[0].to))
+        return false;
+
     // Keep the timer handler from observing a partially replaced executor.
     CRITICAL_REGION_ENTER();
 
@@ -178,6 +193,19 @@ static bool config_is_valid(seq_config_t const *config) {
     if (config->steps == NULL) return false;
     if (config->step_count == 0) return false;
 
+    if (config->scale != SEQ_SCALE_LINEAR &&
+        config->scale != SEQ_SCALE_CYCLIC &&
+        config->scale != SEQ_SCALE_BOUNCE)
+        return false;
+
+    if (config->scale == SEQ_SCALE_CYCLIC &&
+        (config->steps[0].from != 0 || config->steps[0].to != 360))
+        return false;
+
+    if (config->scale == SEQ_SCALE_BOUNCE &&
+        config->steps[0].from >= config->steps[0].to)
+        return false;
+
     return true;
 }
 
@@ -206,6 +234,22 @@ static void executor_process(seq_executor_t *executor) {
         seq_step_t const *step = &executor->config.steps[executor->step_index];
         uint32_t duration = APP_TIMER_TICKS(step->duration_ms);
         uint32_t elapsed = app_timer_cnt_diff_compute(now, executor->start_time);
+        uint16_t start_value = executor->start_value_pending ?
+            executor->start_value : step->from;
+
+        if (executor->config.scale == SEQ_SCALE_BOUNCE) {
+            executor_set_value(
+                executor,
+                interpol_value(
+                    executor->config.scale,
+                    step->from,
+                    step->to,
+                    start_value,
+                    elapsed,
+                    duration));
+
+            return;
+        }
 
         if (duration == 0) {
             executor_set_value(executor, step->to);
@@ -217,7 +261,19 @@ static void executor_process(seq_executor_t *executor) {
         }
 
         if (elapsed >= duration) {
-            executor_set_value(executor, step->to);
+            if (executor->config.scale == SEQ_SCALE_CYCLIC)
+                executor_set_value(
+                    executor,
+                    interpol_value(
+                        executor->config.scale,
+                        step->from,
+                        step->to,
+                        start_value,
+                        duration,
+                        duration));
+            else
+                executor_set_value(executor, step->to);
+
             executor->start_time += duration;
 
             if (!executor_advance(executor))
@@ -228,9 +284,11 @@ static void executor_process(seq_executor_t *executor) {
 
         executor_set_value(
             executor,
-            interpol_linear(
-                executor->start_value_pending ? executor->start_value : step->from,
+            interpol_value(
+                executor->config.scale,
+                step->from,
                 step->to,
+                start_value,
                 elapsed,
                 duration));
 

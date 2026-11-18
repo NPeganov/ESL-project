@@ -3,10 +3,13 @@
 
 #include <stdint.h>
 
-// Calculate a linearly interpolated value between from and to.
-uint16_t interpol_linear(
+#include "../leds_seq.h"
+
+uint16_t interpol_value(
+    seq_scale_t scale,
     uint16_t from,
     uint16_t to,
+    uint16_t start_value,
     uint32_t elapsed,
     uint32_t duration);
 
