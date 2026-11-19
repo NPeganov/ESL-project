@@ -155,7 +155,7 @@ sequencer_state_t sequencer_get_state(sequencer_led_id_t id) {
     if (sequencer == NULL) return SEQUENCER_STATE_IDLE;
 
     CRITICAL_REGION_ENTER();
-    state = executor_get_state(&sequencer->executor);
+    state = sequencer->executor.state;
     CRITICAL_REGION_EXIT();
 
     return state;
@@ -185,7 +185,7 @@ static void sequencer_process(sequencer_t *sequencer) {
 
         executor_process(&sequencer->executor);
 
-        if (executor_get_state(&sequencer->executor) != SEQUENCER_STATE_IDLE)
+        if (sequencer->executor.state != SEQUENCER_STATE_IDLE)
             return;
 
         if (sequencer->phase == SEQUENCER_PHASE_SMOOTH_START &&
