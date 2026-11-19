@@ -15,6 +15,7 @@ $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
 SRC_FILES += \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_systick.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_gpiote.c \
+  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_pwm.c \
   $(SDK_ROOT)/components/libraries/timer/app_timer2.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_clock.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_power.c \
@@ -32,11 +33,10 @@ SRC_FILES += \
   $(SDK_ROOT)/components/libraries/util/app_error_weak.c \
   $(SDK_ROOT)/components/libraries/strerror/nrf_strerror.c \
   $(PROJ_DIR)/main.c \
-  $(PROJ_DIR)/leds/leds.c \
-  $(PROJ_DIR)/leds/soft_pwm.c \
-  $(PROJ_DIR)/leds/fade.c \
-  $(PROJ_DIR)/leds/led_controller.c \
-  $(PROJ_DIR)/leds/led_sequence.c \
+  $(PROJ_DIR)/hardware/pwm/pwm.c \
+  $(PROJ_DIR)/hardware/pwm/internal/pwm_internal.c \
+  $(PROJ_DIR)/leds/leds_pwm.c \
+  $(PROJ_DIR)/leds/internal/color.c \
   $(PROJ_DIR)/btn/btn.c \
   $(PROJ_DIR)/btn/btn_hw.c \
   $(PROJ_DIR)/log/log.c \
@@ -61,6 +61,7 @@ SRC_FILES += \
 # Include folders common to all targets
 INC_FOLDERS += \
   $(PROJ_DIR) \
+  $(PROJ_DIR)/config \
   $(SDK_ROOT)/components \
   $(SDK_ROOT)/modules/nrfx/mdk \
   $(SDK_ROOT)/modules/nrfx/drivers/include/ \

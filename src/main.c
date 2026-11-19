@@ -1,73 +1,39 @@
 #include <stdbool.h>
+#include <stdint.h>
 
-#include "nrfx_systick.h"
+#include "nrf_delay.h"
 
-#include "btn/btn.h"
-#include "leds/leds.h"
-#include "leds/led_sequence.h"
-#include "log/log.h"
+#include "leds/leds_pwm.h"
 
-#define DEVICE_ID               "6609"
+#define DEMO_PERIOD_MS 1000
+#define RGB_COLOR_COUNT 6
 
-#define PWM_PERIOD_US           1000
-#define FADE_DURATION_MS        600
-#define CYCLE_PAUSE_MS          500
-#define INTER_LED_PAUSE_MS      500
-
-static void system_init(led_sequence_t *sequence) {
-    // Initialize LED GPIOs before any module that drives LED outputs.
-    leds_init();
-
-    // Initialize SysTick before any module that uses it as a time base.
-    nrfx_systick_init();
-
-    // Initialize shared LFCLK and app_timer required by the button debounce timer.
-    // The clock driver is also reused by the USB logging backend.
-    btn_init();
-
-    // Initialize logging after btn_init() so the USB backend can reuse
-    // the already initialized clock infrastructure.
-    log_init();
-
-    if (!led_sequence_init(
-            sequence,
-            DEVICE_ID,
-            PWM_PERIOD_US,
-            FADE_DURATION_MS,
-            CYCLE_PAUSE_MS,
-            INTER_LED_PAUSE_MS)) 
-            while (true); // The app MUST NOT run with invalid initialzation params.
-}
+static const uint8_t m_rgb_colors[RGB_COLOR_COUNT][3] = {
+    { 255, 0, 0 },       // Red
+    { 0, 255, 0 },       // Green
+    { 0, 0, 255 },       // Blue
+    { 255, 255, 0 },     // Red + green
+    { 0, 255, 255 },     // Green + blue
+    { 255, 0, 255 }      // Red + blue
+};
 
 int main(void) {
-    led_sequence_t sequence;
+    uint8_t color = 0;
+    bool yellow_bright = true;
 
-    system_init(&sequence);
+    if (!leds_pwm_init())
+        while (true);
 
-    while (true)
-    {
-        // Keep the LED sequence and software PWM serviced.
-        led_sequence_process(&sequence);
+    while (true) {
+        leds_pwm_set_yellow_brightness(yellow_bright ? 100 : 50);
+        leds_pwm_set_rgb(
+            m_rgb_colors[color][0],
+            m_rgb_colors[color][1],
+            m_rgb_colors[color][2]);
 
-        // Process USB events and pending log messages.
-        log_process();
+        yellow_bright = !yellow_bright;
+        color = (color + 1) % RGB_COLOR_COUNT;
 
-        // Process all pending button events.
-        btn_event_t event;
-        while ((event = btn_event_take()) != BTN_EVENT_NONE)
-        {
-            if (event != BTN_EVENT_DOUBLE_PRESS)
-                continue;
-
-            // Toggle the LED sequence on every double press.
-            if (led_sequence_is_running(&sequence)) {
-                led_sequence_pause(&sequence);
-                LOG_INFO("LED sequence paused by double press");
-            }
-            else {
-                led_sequence_resume(&sequence);
-                LOG_INFO("LED sequence resumed by double press");
-            }
-        }
+        nrf_delay_ms(DEMO_PERIOD_MS);
     }
 }
