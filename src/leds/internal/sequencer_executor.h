@@ -9,8 +9,6 @@ typedef struct {
     sequencer_state_t state;
 
     sequencer_config_t config;
-    sequencer_callback_t callback;
-    void *context;
 
     uint16_t step_index;
 
@@ -23,13 +21,14 @@ typedef struct {
 
 void executor_start(
     executor_t *executor,
-    sequencer_config_t const *config,
-    sequencer_callback_t callback,
-    void *context);
+    sequencer_config_t const *config);
 
 void executor_pause(executor_t *executor);
 void executor_resume(executor_t *executor);
 
-void executor_process(executor_t *executor);
+void executor_process(
+    executor_t *executor,
+    sequencer_callback_t callback,
+    void *context);
 
 #endif
