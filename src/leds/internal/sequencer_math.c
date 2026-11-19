@@ -17,17 +17,19 @@ uint16_t interpolate(
 }
 
 uint32_t get_smooth_duration(
-    sequencer_step_t const *step,
+    uint16_t from,
+    uint16_t to,
+    uint32_t duration_ms,
     uint16_t current_value) {
-    uint32_t original_distance = step->from > step->to ?
-        step->from - step->to : step->to - step->from;
-    uint32_t remaining_distance = current_value > step->to ?
-        current_value - step->to : step->to - current_value;
+    uint32_t original_distance = from > to ?
+        from - to : to - from;
+    uint32_t remaining_distance = current_value > to ?
+        current_value - to : to - current_value;
 
     if (original_distance == 0)
-        return step->duration_ms;
+        return duration_ms;
 
     return (uint32_t)(
-        (uint64_t)step->duration_ms * remaining_distance /
+        (uint64_t)duration_ms * remaining_distance /
         original_distance);
 }
