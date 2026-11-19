@@ -18,18 +18,30 @@ typedef enum {
     MODE_BRIGHTNESS
 } hsv_picker_mode_t;
 
+typedef struct {
+    lc_hsv_parameter_t parameter;
+    lc_yellow_pattern_t pattern;
+    char const *name;
+} mode_info_t;
+
+static mode_info_t const m_mode_info[] = {
+    {LC_VALUE,      LC_YELLOW_OFF,       "NO_INPUT"},
+    {LC_HUE,        LC_YELLOW_SLOW_BLINK, "HUE"},
+    {LC_SATURATION, LC_YELLOW_FAST_BLINK, "SATURATION"},
+    {LC_VALUE,      LC_YELLOW_ON,        "BRIGHTNESS"}
+};
+
 static hsv_picker_mode_t m_mode;
 static bool m_parameter_changing;
 static lc_hsv_parameter_t m_active_parameter;
 
 static void button_event_handler(btn_event_t event);
+static void button_press(void);
+static void button_release(void);
 static void mode_advance(void);
 static void mode_set(hsv_picker_mode_t mode);
-static lc_hsv_parameter_t mode_get_parameter(hsv_picker_mode_t mode);
-static lc_yellow_pattern_t mode_get_yellow_pattern(hsv_picker_mode_t mode);
-static char const *mode_get_name(hsv_picker_mode_t mode);
-static uint16_t initial_hue_get(void);
 static void log_parameter_value(char const *event, lc_hsv_parameter_t parameter);
+static uint16_t initial_hue_get(void);
 
 bool hsv_picker_init(void) {
     if (!timer_service_init())
@@ -58,27 +70,11 @@ static void button_event_handler(btn_event_t event) {
     // This callback runs in interrupt context; logging is deferred by the logger.
     switch (event) {
         case BTN_EVENT_PRESS:
-            if (m_mode == MODE_NO_INPUT || m_parameter_changing)
-                break;
-
-            m_active_parameter = mode_get_parameter(m_mode);
-
-            if (!lc_start_hsv_change(m_active_parameter)) {
-                LOG_ERROR("Failed to start HSV parameter change");
-                break;
-            }
-
-            m_parameter_changing = true;
-            log_parameter_value("start", m_active_parameter);
+            button_press();
             break;
 
         case BTN_EVENT_RELEASE:
-            if (!m_parameter_changing)
-                break;
-
-            lc_stop_hsv_change();
-            m_parameter_changing = false;
-            log_parameter_value("final", m_active_parameter);
+            button_release();
             break;
 
         case BTN_EVENT_DOUBLE_PRESS:
@@ -89,6 +85,30 @@ static void button_event_handler(btn_event_t event) {
         default:
             break;
     }
+}
+
+static void button_press(void) {
+    if (m_mode == MODE_NO_INPUT || m_parameter_changing)
+        return;
+
+    m_active_parameter = m_mode_info[m_mode].parameter;
+
+    if (!lc_start_hsv_change(m_active_parameter)) {
+        LOG_ERROR("Failed to start HSV parameter change");
+        return;
+    }
+
+    m_parameter_changing = true;
+    log_parameter_value("start", m_active_parameter);
+}
+
+static void button_release(void) {
+    if (!m_parameter_changing)
+        return;
+
+    lc_stop_hsv_change();
+    m_parameter_changing = false;
+    log_parameter_value("final", m_active_parameter);
 }
 
 static void mode_advance(void) {
@@ -113,61 +133,14 @@ static void mode_advance(void) {
 }
 
 static void mode_set(hsv_picker_mode_t mode) {
-    if (!lc_set_yellow_pattern(mode_get_yellow_pattern(mode)))
+    mode_info_t const *info = &m_mode_info[mode];
+
+    if (!lc_set_yellow_pattern(info->pattern))
         APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
 
     m_mode = mode;
 
-    LOG_INFO("HSV mode: %s", mode_get_name(m_mode));
-}
-
-static lc_hsv_parameter_t mode_get_parameter(hsv_picker_mode_t mode) {
-    switch (mode) {
-        case MODE_HUE:
-            return LC_HUE;
-
-        case MODE_SATURATION:
-            return LC_SATURATION;
-
-        case MODE_BRIGHTNESS:
-        case MODE_NO_INPUT:
-        default:
-            return LC_VALUE;
-    }
-}
-
-static lc_yellow_pattern_t mode_get_yellow_pattern(hsv_picker_mode_t mode) {
-    switch (mode) {
-        case MODE_HUE:
-            return LC_YELLOW_SLOW_BLINK;
-
-        case MODE_SATURATION:
-            return LC_YELLOW_FAST_BLINK;
-
-        case MODE_BRIGHTNESS:
-            return LC_YELLOW_ON;
-
-        case MODE_NO_INPUT:
-        default:
-            return LC_YELLOW_OFF;
-    }
-}
-
-static char const *mode_get_name(hsv_picker_mode_t mode) {
-    switch (mode) {
-        case MODE_HUE:
-            return "HUE";
-
-        case MODE_SATURATION:
-            return "SATURATION";
-
-        case MODE_BRIGHTNESS:
-            return "BRIGHTNESS";
-
-        case MODE_NO_INPUT:
-        default:
-            return "NO_INPUT";
-    }
+    LOG_INFO("HSV mode: %s", info->name);
 }
 
 static void log_parameter_value(char const *event, lc_hsv_parameter_t parameter) {
