@@ -20,15 +20,9 @@ typedef enum {
     SEQUENCER_STATE_PAUSED
 } sequencer_state_t;
 
-typedef enum {
-    SEQUENCER_SCALE_LINEAR,
-    SEQUENCER_SCALE_CYCLIC, // One full cycle over the 0..360 range.
-    SEQUENCER_SCALE_BOUNCE  // Oscillation between the step boundaries.
-} sequencer_scale_t;
-
 typedef struct {
-    uint16_t from; // Start value or lower boundary, depending on scale.
-    uint16_t to; // Target value or upper boundary, depending on scale.
+    uint16_t from; // Start value.
+    uint16_t to; // Target value.
     uint32_t duration_ms;
 } sequencer_step_t;
 
@@ -36,7 +30,6 @@ typedef struct {
     sequencer_step_t const *steps;
     uint16_t step_count;
     bool repeat;
-    sequencer_scale_t scale; // Interpolation scale used by every step.
 } sequencer_config_t;
 
 typedef void (*sequencer_callback_t)(uint16_t value, void *context);

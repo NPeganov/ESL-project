@@ -24,9 +24,6 @@ typedef struct {
 
     // Elapsed time saved when the executor is paused.
     uint32_t elapsed_time;
-
-    uint16_t last_value;
-    bool last_value_valid;
 } executor_t;
 
 bool executor_start(

@@ -19,7 +19,8 @@ static sequencer_step_t const m_hue_steps[] = {
 };
 
 static sequencer_step_t const m_hsv_value_steps[] = {
-    { 0, 100, HSV_VALUE_SWEEP_DURATION_MS }
+    { 0, 100, HSV_VALUE_SWEEP_DURATION_MS },
+    { 100, 0, HSV_VALUE_SWEEP_DURATION_MS }
 };
 
 static sequencer_step_t const m_yellow_off_steps[] = {
@@ -74,32 +75,26 @@ bool leds_control_init(void) {
     m_hue_config.steps = m_hue_steps;
     m_hue_config.step_count = sizeof(m_hue_steps) / sizeof(m_hue_steps[0]);
     m_hue_config.repeat = true;
-    m_hue_config.scale = SEQUENCER_SCALE_CYCLIC;
 
     m_hsv_value_config.steps = m_hsv_value_steps;
     m_hsv_value_config.step_count = sizeof(m_hsv_value_steps) / sizeof(m_hsv_value_steps[0]);
     m_hsv_value_config.repeat = true;
-    m_hsv_value_config.scale = SEQUENCER_SCALE_BOUNCE;
 
     m_yellow_off_config.steps = m_yellow_off_steps;
     m_yellow_off_config.step_count = sizeof(m_yellow_off_steps) / sizeof(m_yellow_off_steps[0]);
     m_yellow_off_config.repeat = false;
-    m_yellow_off_config.scale = SEQUENCER_SCALE_LINEAR;
 
     m_yellow_on_config.steps = m_yellow_on_steps;
     m_yellow_on_config.step_count = sizeof(m_yellow_on_steps) / sizeof(m_yellow_on_steps[0]);
     m_yellow_on_config.repeat = false;
-    m_yellow_on_config.scale = SEQUENCER_SCALE_LINEAR;
 
     m_yellow_slow_config.steps = m_yellow_slow_steps;
     m_yellow_slow_config.step_count = sizeof(m_yellow_slow_steps) / sizeof(m_yellow_slow_steps[0]);
     m_yellow_slow_config.repeat = true;
-    m_yellow_slow_config.scale = SEQUENCER_SCALE_LINEAR;
 
     m_yellow_fast_config.steps = m_yellow_fast_steps;
     m_yellow_fast_config.step_count = sizeof(m_yellow_fast_steps) / sizeof(m_yellow_fast_steps[0]);
     m_yellow_fast_config.repeat = true;
-    m_yellow_fast_config.scale = SEQUENCER_SCALE_LINEAR;
 
     m_active_parameter_valid = false;
     m_initialized = true;

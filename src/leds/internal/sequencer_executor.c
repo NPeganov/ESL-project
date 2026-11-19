@@ -9,7 +9,6 @@
 static bool config_is_valid(sequencer_config_t const *config);
 static bool config_has_timed_step(sequencer_config_t const *config);
 static bool executor_advance(executor_t *executor);
-static void executor_set_value(executor_t *executor, uint16_t value);
 static void executor_clear(executor_t *executor);
 
 bool executor_start(
@@ -29,22 +28,6 @@ bool executor_start(
     if (config->repeat && !config_has_timed_step(config))
         return false;
 
-    if ((config->scale == SEQUENCER_SCALE_CYCLIC ||
-         config->scale == SEQUENCER_SCALE_BOUNCE) &&
-        (!config->repeat || config->step_count != 1 ||
-         config->steps[0].duration_ms == 0))
-        return false;
-
-    if (config->scale == SEQUENCER_SCALE_CYCLIC &&
-        start_mode == SEQUENCER_START_CURRENT && current_value >= 360)
-        return false;
-
-    if (config->scale == SEQUENCER_SCALE_BOUNCE &&
-        start_mode == SEQUENCER_START_CURRENT &&
-        (current_value < config->steps[0].from ||
-         current_value > config->steps[0].to))
-        return false;
-
     executor->config = *config;
     executor->callback = callback;
     executor->context = context;
@@ -53,7 +36,6 @@ bool executor_start(
     executor->start_value_pending = (start_mode == SEQUENCER_START_CURRENT);
     executor->start_time = app_timer_cnt_get();
     executor->elapsed_time = 0;
-    executor->last_value_valid = false;
     executor->state = SEQUENCER_STATE_RUNNING;
 
     executor_process(executor);
@@ -102,22 +84,8 @@ void executor_process(executor_t *executor) {
         uint16_t start_value = executor->start_value_pending ?
             executor->start_value : step->from;
 
-        if (executor->config.scale == SEQUENCER_SCALE_BOUNCE) {
-            executor_set_value(
-                executor,
-                interpol_value(
-                    executor->config.scale,
-                    step->from,
-                    step->to,
-                    start_value,
-                    elapsed,
-                    duration));
-
-            return;
-        }
-
         if (duration == 0) {
-            executor_set_value(executor, step->to);
+            executor->callback(step->to, executor->context);
 
             if (!executor_advance(executor))
                 return;
@@ -126,19 +94,7 @@ void executor_process(executor_t *executor) {
         }
 
         if (elapsed >= duration) {
-            if (executor->config.scale == SEQUENCER_SCALE_CYCLIC)
-                executor_set_value(
-                    executor,
-                    interpol_value(
-                        executor->config.scale,
-                        step->from,
-                        step->to,
-                        start_value,
-                        duration,
-                        duration));
-            else
-                executor_set_value(executor, step->to);
-
+            executor->callback(step->to, executor->context);
             executor->start_time += duration;
 
             if (!executor_advance(executor))
@@ -147,15 +103,13 @@ void executor_process(executor_t *executor) {
             continue;
         }
 
-        executor_set_value(
-            executor,
-            interpol_value(
-                executor->config.scale,
-                step->from,
-                step->to,
+        executor->callback(
+            interpol_linear(
                 start_value,
+                step->to,
                 elapsed,
-                duration));
+                duration),
+            executor->context);
 
         return;
     }
@@ -165,19 +119,6 @@ static bool config_is_valid(sequencer_config_t const *config) {
     if (config == NULL) return false;
     if (config->steps == NULL) return false;
     if (config->step_count == 0) return false;
-
-    if (config->scale != SEQUENCER_SCALE_LINEAR &&
-        config->scale != SEQUENCER_SCALE_CYCLIC &&
-        config->scale != SEQUENCER_SCALE_BOUNCE)
-        return false;
-
-    if (config->scale == SEQUENCER_SCALE_CYCLIC &&
-        (config->steps[0].from != 0 || config->steps[0].to != 360))
-        return false;
-
-    if (config->scale == SEQUENCER_SCALE_BOUNCE &&
-        config->steps[0].from >= config->steps[0].to)
-        return false;
 
     return true;
 }
@@ -208,15 +149,6 @@ static bool executor_advance(executor_t *executor) {
     return true;
 }
 
-static void executor_set_value(executor_t *executor, uint16_t value) {
-    if (executor->last_value_valid && executor->last_value == value) return;
-
-    executor->last_value = value;
-    executor->last_value_valid = true;
-
-    executor->callback(value, executor->context);
-}
-
 static void executor_clear(executor_t *executor) {
     executor->state = SEQUENCER_STATE_IDLE;
     executor->config = (sequencer_config_t){ 0 };
@@ -227,5 +159,4 @@ static void executor_clear(executor_t *executor) {
     executor->start_value_pending = false;
     executor->start_time = 0;
     executor->elapsed_time = 0;
-    executor->last_value_valid = false;
 }
