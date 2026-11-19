@@ -7,7 +7,6 @@
 #include "nrfx_gpiote.h"
 
 #include "btn_hw.h"
-#include "log/log.h"
 #include "pca10059.h"
 
 #define BTN_DEBOUNCE_TIME_MS 10
@@ -107,10 +106,6 @@ static void rtc1_debounce_callback(void *p_context) {
 
     // If the input changed during the interval, wait for another complete interval.
     if (pin_state != m_debounce_candidate_state) {
-        // This callback runs in interrupt context. Logging must remain deferred
-        // so that the callback does not perform synchronous backend I/O.
-        LOG_INFO("Button bounce detected");
-
         m_debounce_candidate_state = pin_state;
 
         APP_ERROR_CHECK(app_timer_start(
@@ -122,10 +117,6 @@ static void rtc1_debounce_callback(void *p_context) {
     }
 
     // Report the stable physical GPIO level.
-    // This callback runs in interrupt context. Logging must remain deferred
-    // so that the callback does not perform synchronous backend I/O.
-    LOG_INFO("Button stable level: %s", pin_high ? "High" : "Low");
-
     // The initial state is reported only after it has passed debounce.
     if (m_initial_state_pending) {
         m_confirmed_state = pin_state;

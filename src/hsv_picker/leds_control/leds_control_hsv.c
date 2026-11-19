@@ -49,6 +49,9 @@ bool hsv_start(lc_hsv_parameter_t parameter) {
         return true;
     }
 
+    if (change_state == CHANGE_RUNNING)
+        hsv_process(now);
+
     leds_pwm_get_hsv(&hue, &saturation, &value);
 
     switch (parameter) {
@@ -68,11 +71,8 @@ bool hsv_start(lc_hsv_parameter_t parameter) {
 void hsv_stop(void) {
     if (change_state != CHANGE_RUNNING) return;
 
-    // Account for time since the last timer callback before pausing.
-    elapsed_ticks += app_timer_cnt_diff_compute(
-        app_timer_cnt_get(),
-        last_tick);
-
+    // Apply the final elapsed time before fixing the current value.
+    hsv_process(app_timer_cnt_get());
     change_state = CHANGE_PAUSED;
 }
 

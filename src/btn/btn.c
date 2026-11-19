@@ -7,7 +7,6 @@
 
 #include "btn.h"
 #include "btn_hw.h"
-#include "log/log.h"
 
 #ifndef BTN_DOUBLE_PRESS_TIME_MS
 #define BTN_DOUBLE_PRESS_TIME_MS 1000
@@ -68,13 +67,9 @@ static void button_state_changed(bool pressed) {
     if (pressed) {
         m_press_started = true;
 
-        LOG_INFO("Button event: PRESSED");
-
         event_notify(BTN_EVENT_PRESS);
         return;
     }
-
-    LOG_INFO("Button event: RELEASED");
 
     event_notify(BTN_EVENT_RELEASE);
 
@@ -83,8 +78,6 @@ static void button_state_changed(bool pressed) {
     m_press_started = false;
 
     // Report every completed press-release cycle.
-    LOG_INFO("Button event: SINGLE");
-
     event_notify(BTN_EVENT_SINGLE_PRESS);
 
     now = app_timer_cnt_get();
@@ -97,8 +90,6 @@ static void button_state_changed(bool pressed) {
             APP_ERROR_CHECK(app_timer_stop(m_double_press_timer));
 
             // The second completed cycle occurred within the double-press interval.
-            LOG_INFO("Button event: DOUBLE");
-
             event_notify(BTN_EVENT_DOUBLE_PRESS);
             return;
         }
