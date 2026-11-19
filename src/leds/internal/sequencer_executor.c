@@ -30,8 +30,6 @@ bool executor_start(
     executor->elapsed_time = 0;
     executor->state = SEQUENCER_STATE_RUNNING;
 
-    executor_process(executor);
-
     return true;
 }
 

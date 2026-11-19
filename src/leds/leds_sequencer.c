@@ -122,10 +122,9 @@ bool sequencer_start(
             context);
     }
 
-    if (result && start_mode == SEQUENCER_START_CURRENT)
+    if (result)
         sequencer_process(sequencer);
-
-    if (!result)
+    else
         sequencer->phase = SEQUENCER_PHASE_IDLE;
 
     CRITICAL_REGION_EXIT();
