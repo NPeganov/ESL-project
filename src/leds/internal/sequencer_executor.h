@@ -1,7 +1,6 @@
 #ifndef _SEQUENCER_EXECUTOR_H_
 #define _SEQUENCER_EXECUTOR_H_
 
-#include <stdbool.h>
 #include <stdint.h>
 
 #include "../leds_sequencer.h"
@@ -22,7 +21,7 @@ typedef struct {
     uint32_t elapsed_time;
 } executor_t;
 
-bool executor_start(
+void executor_start(
     executor_t *executor,
     sequencer_config_t const *config,
     sequencer_callback_t callback,
