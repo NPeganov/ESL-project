@@ -1,103 +1,60 @@
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
+
+#include "app_timer.h"
+#include "nrf_error.h"
 
 #include "leds_control.h"
 #include "leds_pwm.h"
-#include "leds_sequencer.h"
 
-// Full Hue rotation and full S/V sweep durations.
+// HSV change rates and yellow indicator intervals.
+#define CONTROL_TIMER_INTERVAL_MS 10
 #define HUE_CYCLE_DURATION_MS 10000
-#define HSV_VALUE_SWEEP_DURATION_MS 5000
-
-// Yellow indicator on/off durations.
+#define HSV_VALUE_HALF_CYCLE_MS 5000
 #define YELLOW_SLOW_BLINK_MS 1000
 #define YELLOW_FAST_BLINK_MS 150
 
-static sequencer_step_t const m_hue_steps[] = {
-    { 0, 360, HUE_CYCLE_DURATION_MS }
-};
-
-static sequencer_step_t const m_hsv_value_steps[] = {
-    { 0, 100, HSV_VALUE_SWEEP_DURATION_MS },
-    { 100, 0, HSV_VALUE_SWEEP_DURATION_MS }
-};
-
-static sequencer_step_t const m_yellow_off_steps[] = {
-    { 0, 0, 0 }
-};
-
-static sequencer_step_t const m_yellow_on_steps[] = {
-    { 0, 100, 0 }
-};
-
-static sequencer_step_t const m_yellow_slow_steps[] = {
-    { 0, 100, 0 },
-    { 100, 100, YELLOW_SLOW_BLINK_MS },
-    { 100, 0, 0 },
-    { 0, 0, YELLOW_SLOW_BLINK_MS }
-};
-
-static sequencer_step_t const m_yellow_fast_steps[] = {
-    { 0, 100, 0 },
-    { 100, 100, YELLOW_FAST_BLINK_MS },
-    { 100, 0, 0 },
-    { 0, 0, YELLOW_FAST_BLINK_MS }
-};
-
-static sequencer_config_t m_hue_config;
-static sequencer_config_t m_hsv_value_config;
-static sequencer_config_t m_yellow_off_config;
-static sequencer_config_t m_yellow_on_config;
-static sequencer_config_t m_yellow_slow_config;
-static sequencer_config_t m_yellow_fast_config;
+APP_TIMER_DEF(m_control_timer);
 
 static bool m_initialized;
-static bool m_active_parameter_valid;
+
+static bool m_hsv_change_active;
 static leds_control_hsv_parameter_t m_active_parameter;
+static uint16_t m_hsv_change_start_value;
+static uint32_t m_hsv_change_start_tick;
 
-static leds_control_hsv_parameter_t m_hue_context = LEDS_CONTROL_HUE;
-static leds_control_hsv_parameter_t m_saturation_context = LEDS_CONTROL_SATURATION;
-static leds_control_hsv_parameter_t m_value_context = LEDS_CONTROL_VALUE;
+static leds_control_yellow_pattern_t m_yellow_pattern;
+static bool m_yellow_state;
+static uint32_t m_yellow_toggle_tick;
 
-static void rgb_value_callback(uint16_t value, void *context);
-static void yellow_callback(uint16_t value, void *context);
+static void control_timer_handler(void *p_context);
+static void hsv_change_process(uint32_t now);
+static void yellow_process(uint32_t now);
 
 bool leds_control_init(void) {
     if (m_initialized) return false;
 
-    if (!leds_pwm_init())
+    if (!leds_pwm_init()) return false;
+
+    if (app_timer_create(
+            &m_control_timer,
+            APP_TIMER_MODE_REPEATED,
+            control_timer_handler) != NRF_SUCCESS)
         return false;
 
-    if (!sequencer_init())
-        return false;
-
-    m_hue_config.steps = m_hue_steps;
-    m_hue_config.step_count = sizeof(m_hue_steps) / sizeof(m_hue_steps[0]);
-    m_hue_config.repeat = true;
-
-    m_hsv_value_config.steps = m_hsv_value_steps;
-    m_hsv_value_config.step_count = sizeof(m_hsv_value_steps) / sizeof(m_hsv_value_steps[0]);
-    m_hsv_value_config.repeat = true;
-
-    m_yellow_off_config.steps = m_yellow_off_steps;
-    m_yellow_off_config.step_count = sizeof(m_yellow_off_steps) / sizeof(m_yellow_off_steps[0]);
-    m_yellow_off_config.repeat = false;
-
-    m_yellow_on_config.steps = m_yellow_on_steps;
-    m_yellow_on_config.step_count = sizeof(m_yellow_on_steps) / sizeof(m_yellow_on_steps[0]);
-    m_yellow_on_config.repeat = false;
-
-    m_yellow_slow_config.steps = m_yellow_slow_steps;
-    m_yellow_slow_config.step_count = sizeof(m_yellow_slow_steps) / sizeof(m_yellow_slow_steps[0]);
-    m_yellow_slow_config.repeat = true;
-
-    m_yellow_fast_config.steps = m_yellow_fast_steps;
-    m_yellow_fast_config.step_count = sizeof(m_yellow_fast_steps) / sizeof(m_yellow_fast_steps[0]);
-    m_yellow_fast_config.repeat = true;
-
-    m_active_parameter_valid = false;
+    m_hsv_change_active = false;
+    m_yellow_pattern = LEDS_CONTROL_YELLOW_OFF;
+    m_yellow_state = false;
+    m_yellow_toggle_tick = app_timer_cnt_get();
     m_initialized = true;
+
+    if (app_timer_start(
+            m_control_timer,
+            APP_TIMER_TICKS(CONTROL_TIMER_INTERVAL_MS),
+            NULL) != NRF_SUCCESS) {
+        m_initialized = false;
+        return false;
+    }
 
     return true;
 }
@@ -118,12 +75,9 @@ void leds_control_get_hsv(
 
 bool leds_control_start_hsv_change(
     leds_control_hsv_parameter_t parameter) {
-    sequencer_config_t const *config;
     uint16_t hue;
     uint8_t saturation;
     uint8_t value;
-    uint16_t current_value;
-    void *context;
 
     if (!m_initialized) return false;
 
@@ -132,132 +86,151 @@ bool leds_control_start_hsv_change(
         parameter != LEDS_CONTROL_VALUE)
         return false;
 
-    if (m_active_parameter_valid && m_active_parameter == parameter) {
-        sequencer_state_t state = sequencer_get_state(SEQUENCER_RGB_LED);
-
-        if (state == SEQUENCER_STATE_RUNNING) return true;
-
-        if (state == SEQUENCER_STATE_PAUSED) {
-            sequencer_apply_action(
-                SEQUENCER_RGB_LED,
-                SEQUENCER_ACTION_RESUME);
-            return true;
-        }
-    }
+    if (m_hsv_change_active && m_active_parameter == parameter)
+        return true;
 
     leds_pwm_get_hsv(&hue, &saturation, &value);
 
     switch (parameter) {
         case LEDS_CONTROL_HUE:
-            config = &m_hue_config;
-            current_value = hue;
-            context = &m_hue_context;
+            m_hsv_change_start_value = hue;
             break;
 
         case LEDS_CONTROL_SATURATION:
-            config = &m_hsv_value_config;
-            current_value = saturation;
-            context = &m_saturation_context;
+            m_hsv_change_start_value = saturation;
             break;
 
         case LEDS_CONTROL_VALUE:
-            config = &m_hsv_value_config;
-            current_value = value;
-            context = &m_value_context;
+            m_hsv_change_start_value = value;
             break;
 
         default:
             return false;
     }
 
-    if (!sequencer_start(
-            SEQUENCER_RGB_LED,
-            config,
-            SEQUENCER_START_CURRENT,
-            current_value,
-            rgb_value_callback,
-            context))
-        return false;
-
     m_active_parameter = parameter;
-    m_active_parameter_valid = true;
+    m_hsv_change_start_tick = app_timer_cnt_get();
+    m_hsv_change_active = true;
 
     return true;
 }
 
 void leds_control_stop_hsv_change(void) {
-    if (m_initialized)
-        sequencer_apply_action(
-            SEQUENCER_RGB_LED,
-            SEQUENCER_ACTION_PAUSE);
+    m_hsv_change_active = false;
 }
 
 bool leds_control_set_yellow_pattern(
     leds_control_yellow_pattern_t pattern) {
-    sequencer_config_t const *config;
+    uint8_t brightness;
 
     if (!m_initialized) return false;
 
     switch (pattern) {
         case LEDS_CONTROL_YELLOW_OFF:
-            config = &m_yellow_off_config;
-            break;
-
-        case LEDS_CONTROL_YELLOW_SLOW_BLINK:
-            config = &m_yellow_slow_config;
-            break;
-
-        case LEDS_CONTROL_YELLOW_FAST_BLINK:
-            config = &m_yellow_fast_config;
+            m_yellow_state = false;
+            brightness = 0;
             break;
 
         case LEDS_CONTROL_YELLOW_ON:
-            config = &m_yellow_on_config;
+        case LEDS_CONTROL_YELLOW_SLOW_BLINK:
+        case LEDS_CONTROL_YELLOW_FAST_BLINK:
+            m_yellow_state = true;
+            brightness = 100;
             break;
 
         default:
             return false;
     }
 
-    return sequencer_start(
-        SEQUENCER_YELLOW_LED,
-        config,
-        SEQUENCER_START_FROM_STEP,
-        config->steps[0].from,
-        yellow_callback,
-        NULL);
+    m_yellow_pattern = pattern;
+    m_yellow_toggle_tick = app_timer_cnt_get();
+    leds_pwm_set_yellow_brightness(brightness);
+
+    return true;
 }
 
-static void rgb_value_callback(uint16_t value, void *context) {
-    leds_control_hsv_parameter_t const *parameter = context;
+static void control_timer_handler(void *p_context) {
+    uint32_t now = app_timer_cnt_get();
+
+    (void)p_context;
+
+    hsv_change_process(now);
+    yellow_process(now);
+}
+
+static void hsv_change_process(uint32_t now) {
+    uint32_t elapsed;
     uint16_t hue;
     uint8_t saturation;
-    uint8_t brightness;
+    uint8_t value;
 
-    leds_pwm_get_hsv(&hue, &saturation, &brightness);
+    if (!m_hsv_change_active) return;
 
-    switch (*parameter) {
-        case LEDS_CONTROL_HUE:
-            hue = value % 360;
+    elapsed = app_timer_cnt_diff_compute(now, m_hsv_change_start_tick);
+    leds_pwm_get_hsv(&hue, &saturation, &value);
+
+    switch (m_active_parameter) {
+        case LEDS_CONTROL_HUE: {
+            uint32_t cycle_ticks = APP_TIMER_TICKS(HUE_CYCLE_DURATION_MS);
+
+            // Rotate from the current Hue at a constant rate, wrapping at 360 degrees.
+            uint16_t hue_delta = (uint16_t)(
+                (uint64_t)(elapsed % cycle_ticks) * 360 / cycle_ticks);
+            uint16_t next_hue = (m_hsv_change_start_value + hue_delta) % 360;
+
+            if (next_hue != hue)
+                leds_pwm_set_hsv(next_hue, saturation, value);
             break;
+        }
 
         case LEDS_CONTROL_SATURATION:
-            saturation = (uint8_t)value;
+        case LEDS_CONTROL_VALUE: {
+            uint32_t half_cycle_ticks = APP_TIMER_TICKS(HSV_VALUE_HALF_CYCLE_MS);
+            uint32_t steps = (uint32_t)(
+                (uint64_t)elapsed * 100 / half_cycle_ticks);
+
+            // A 0..100..0 triangle wave starts by moving toward 100.
+            uint16_t phase = (m_hsv_change_start_value + steps) % 200;
+            uint8_t next_value = (uint8_t)(
+                phase <= 100 ? phase : 200 - phase);
+
+            if (m_active_parameter == LEDS_CONTROL_SATURATION) {
+                if (next_value != saturation)
+                    leds_pwm_set_hsv(hue, next_value, value);
+            } else if (next_value != value)
+                leds_pwm_set_hsv(hue, saturation, next_value);
+            break;
+        }
+
+        default:
+            m_hsv_change_active = false;
+            break;
+    }
+}
+
+static void yellow_process(uint32_t now) {
+    uint32_t interval_ms;
+    uint32_t interval_ticks;
+
+    switch (m_yellow_pattern) {
+        case LEDS_CONTROL_YELLOW_SLOW_BLINK:
+            interval_ms = YELLOW_SLOW_BLINK_MS;
             break;
 
-        case LEDS_CONTROL_VALUE:
-            brightness = (uint8_t)value;
+        case LEDS_CONTROL_YELLOW_FAST_BLINK:
+            interval_ms = YELLOW_FAST_BLINK_MS;
             break;
 
         default:
             return;
     }
 
-    leds_pwm_set_hsv(hue, saturation, brightness);
-}
+    interval_ticks = APP_TIMER_TICKS(interval_ms);
 
-static void yellow_callback(uint16_t value, void *context) {
-    (void)context;
+    while (app_timer_cnt_diff_compute(now, m_yellow_toggle_tick) >= interval_ticks) {
+        m_yellow_toggle_tick += interval_ticks;
+        m_yellow_state = !m_yellow_state;
 
-    leds_pwm_set_yellow_brightness((uint8_t)value);
+        leds_pwm_set_yellow_brightness(m_yellow_state ? 100 : 0);
+    }
 }

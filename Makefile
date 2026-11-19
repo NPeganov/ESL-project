@@ -39,10 +39,7 @@ SRC_FILES += \
   $(PROJ_DIR)/hardware/leds_gpio/leds_gpio.c \
   $(PROJ_DIR)/leds/leds_pwm.c \
   $(PROJ_DIR)/leds/leds_control.c \
-  $(PROJ_DIR)/leds/internal/sequencer_math.c \
-  $(PROJ_DIR)/leds/internal/sequencer_executor.c \
   $(PROJ_DIR)/leds/internal/color.c \
-  $(PROJ_DIR)/leds/leds_sequencer.c \
   $(PROJ_DIR)/timer_service/timer_service.c \
   $(PROJ_DIR)/btn/btn.c \
   $(PROJ_DIR)/btn/btn_hw.c \
