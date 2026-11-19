@@ -2,7 +2,7 @@
 
 #include "sequencer_math.h"
 
-uint16_t sequencer_math_interpolate(
+uint16_t interpolate(
     uint16_t from,
     uint16_t to,
     uint32_t elapsed,
@@ -16,7 +16,7 @@ uint16_t sequencer_math_interpolate(
     return (uint16_t)(from + delta * elapsed / duration);
 }
 
-uint32_t sequencer_math_smooth_duration_get(
+uint32_t get_smooth_duration(
     sequencer_step_t const *step,
     uint16_t current_value) {
     uint32_t original_distance = step->from > step->to ?

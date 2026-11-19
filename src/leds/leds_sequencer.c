@@ -97,7 +97,7 @@ bool sequencer_start(
 
         sequencer->smooth_step.from = current_value;
         sequencer->smooth_step.to = config->steps[0].to;
-        sequencer->smooth_step.duration_ms = sequencer_math_smooth_duration_get(
+        sequencer->smooth_step.duration_ms = get_smooth_duration(
             &config->steps[0],
             current_value);
 
@@ -128,18 +128,10 @@ void sequencer_apply_action(
 
     CRITICAL_REGION_ENTER();
 
-    switch (action) {
-        case SEQUENCER_ACTION_PAUSE:
-            executor_pause(&sequencer->executor);
-            break;
-
-        case SEQUENCER_ACTION_RESUME:
-            executor_resume(&sequencer->executor);
-            break;
-
-        default:
-            break;
-    }
+    if (action == SEQUENCER_ACTION_PAUSE)
+        executor_pause(&sequencer->executor);
+    else if (action == SEQUENCER_ACTION_RESUME)
+        executor_resume(&sequencer->executor);
 
     CRITICAL_REGION_EXIT();
 }

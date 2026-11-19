@@ -60,7 +60,7 @@ void executor_process(
         }
 
         callback(
-            sequencer_math_interpolate(
+            interpolate(
                 step->from,
                 step->to,
                 elapsed,
