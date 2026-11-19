@@ -33,14 +33,14 @@ static mode_info_t const m_mode_info[] = {
 };
 
 static hsv_picker_mode_t m_mode;
-static bool m_parameter_changing;
-static lc_hsv_parameter_t m_active_parameter;
+static bool m_changing;
+static lc_hsv_parameter_t m_parameter;
 
 static void button_event_handler(btn_event_t event);
 static void button_press(void);
 static void button_release(void);
 static void mode_advance(void);
-static void log_parameter_value(char const *event, lc_hsv_parameter_t parameter);
+static void log_parameter(char const *event, lc_hsv_parameter_t parameter);
 static uint16_t initial_hue_get(void);
 
 bool hsv_picker_init(void) {
@@ -51,7 +51,7 @@ bool hsv_picker_init(void) {
         return false;
 
     m_mode = MODE_NO_INPUT;
-    m_parameter_changing = false;
+    m_changing = false;
 
     lc_set_hsv(initial_hue_get(), 100, 100);
     btn_init(button_event_handler);
@@ -91,7 +91,7 @@ static void button_press(void) {
     if (m_mode == MODE_NO_INPUT || m_parameter_changing)
         return;
 
-    m_active_parameter = m_mode_info[m_mode].parameter;
+    m_parameter = m_mode_info[m_mode].parameter;
 
     if (!lc_start_hsv_change(m_active_parameter)) {
         LOG_ERROR("Failed to start HSV parameter change");
@@ -99,7 +99,7 @@ static void button_press(void) {
     }
 
     m_parameter_changing = true;
-    log_parameter_value("start", m_active_parameter);
+    log_parameter("start", m_active_parameter);
 }
 
 static void button_release(void) {
