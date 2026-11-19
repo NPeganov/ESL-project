@@ -3,7 +3,6 @@
 
 #include "app_timer.h"
 
-#include "../leds_control.h"
 #include "../leds_pwm.h"
 #include "leds_control_hsv.h"
 
@@ -17,77 +16,77 @@ typedef enum {
     CHANGE_PAUSED
 } change_state_t;
 
-static change_state_t m_change_state;
-static leds_control_hsv_parameter_t m_active_parameter;
-static uint16_t m_start_value;
-static uint32_t m_elapsed_ticks;
-static uint32_t m_last_tick;
+static change_state_t change_state;
+static lc_hsv_parameter_t active_parameter;
+static uint16_t start_value;
+static uint32_t elapsed_ticks;
+static uint32_t last_tick;
 
-void leds_control_hsv_init(void) {
-    m_change_state = CHANGE_IDLE;
+void hsv_init(void) {
+    change_state = CHANGE_IDLE;
 }
 
-bool leds_control_hsv_start(leds_control_hsv_parameter_t parameter) {
+bool hsv_start(lc_hsv_parameter_t parameter) {
     uint16_t hue;
     uint8_t saturation;
     uint8_t value;
     uint32_t now;
 
-    if (parameter != LEDS_CONTROL_HUE &&
-        parameter != LEDS_CONTROL_SATURATION &&
-        parameter != LEDS_CONTROL_VALUE)
+    if (parameter != LC_HUE &&
+        parameter != LC_SATURATION &&
+        parameter != LC_VALUE)
         return false;
 
-    if (m_change_state == CHANGE_RUNNING && m_active_parameter == parameter)
+    if (change_state == CHANGE_RUNNING && active_parameter == parameter)
         return true;
 
     now = app_timer_cnt_get();
 
     // Resume the same parameter without changing its position or direction.
-    if (m_change_state == CHANGE_PAUSED && m_active_parameter == parameter) {
-        m_last_tick = now;
-        m_change_state = CHANGE_RUNNING;
+    if (change_state == CHANGE_PAUSED && active_parameter == parameter) {
+        last_tick = now;
+        change_state = CHANGE_RUNNING;
         return true;
     }
 
     leds_pwm_get_hsv(&hue, &saturation, &value);
 
     switch (parameter) {
-        case LEDS_CONTROL_HUE:
-            m_start_value = hue;
+        case LC_HUE:
+            start_value = hue;
             break;
 
-        case LEDS_CONTROL_SATURATION:
-            m_start_value = saturation;
+        case LC_SATURATION:
+            start_value = saturation;
             break;
 
-        case LEDS_CONTROL_VALUE:
-            m_start_value = value;
+        case LC_VALUE:
+            start_value = value;
             break;
 
         default:
             return false;
     }
 
-    m_active_parameter = parameter;
-    m_elapsed_ticks = 0;
-    m_last_tick = now;
-    m_change_state = CHANGE_RUNNING;
+    active_parameter = parameter;
+    elapsed_ticks = 0;
+    last_tick = now;
+    change_state = CHANGE_RUNNING;
 
     return true;
 }
 
-void leds_control_hsv_stop(void) {
-    if (m_change_state != CHANGE_RUNNING) return;
+void hsv_stop(void) {
+    if (change_state != CHANGE_RUNNING) return;
 
-    m_elapsed_ticks += app_timer_cnt_diff_compute(
+    elapsed_ticks += app_timer_cnt_diff_compute(
         app_timer_cnt_get(),
-        m_last_tick);
+        last_tick);
 
-    m_change_state = CHANGE_PAUSED;
+    change_state = CHANGE_PAUSED;
 }
 
-void leds_control_hsv_process(uint32_t now) {
+void hsv_process(uint32_t now) {
     uint16_t hue;
     uint8_t saturation;
     uint8_t value;
@@ -95,10 +94,10 @@ void leds_control_hsv_process(uint32_t now) {
     uint8_t next_saturation;
     uint8_t next_value;
 
-    if (m_change_state != CHANGE_RUNNING) return;
+    if (change_state != CHANGE_RUNNING) return;
 
-    m_elapsed_ticks += app_timer_cnt_diff_compute(now, m_last_tick);
-    m_last_tick = now;
+    elapsed_ticks += app_timer_cnt_diff_compute(now, last_tick);
+    last_tick = now;
 
     leds_pwm_get_hsv(&hue, &saturation, &value);
 
@@ -106,32 +105,32 @@ void leds_control_hsv_process(uint32_t now) {
     next_saturation = saturation;
     next_value = value;
 
-    switch (m_active_parameter) {
-        case LEDS_CONTROL_HUE: {
+    switch (active_parameter) {
+        case LC_HUE: {
             uint32_t cycle_ticks = APP_TIMER_TICKS(HUE_CYCLE_DURATION_MS);
 
             // Rotate from the current Hue at a constant rate, wrapping at 360 degrees.
             uint16_t hue_delta = (uint16_t)(
-                (uint64_t)(m_elapsed_ticks % cycle_ticks) *
+                (uint64_t)(elapsed_ticks % cycle_ticks) *
                 360 / cycle_ticks);
 
-            next_hue = (m_start_value + hue_delta) % 360;
+            next_hue = (start_value + hue_delta) % 360;
             break;
         }
 
-        case LEDS_CONTROL_SATURATION:
-        case LEDS_CONTROL_VALUE: {
+        case LC_SATURATION:
+        case LC_VALUE: {
             uint32_t half_cycle_ticks = APP_TIMER_TICKS(HSV_VALUE_HALF_CYCLE_MS);
             uint32_t steps = (uint32_t)(
-                (uint64_t)m_elapsed_ticks * 100 /
+                (uint64_t)elapsed_ticks * 100 /
                 half_cycle_ticks);
 
             // A 0..100..0 triangle wave starts by moving toward 100.
-            uint16_t phase = (m_start_value + steps) % 200;
+            uint16_t phase = (start_value + steps) % 200;
             uint8_t next_component = (uint8_t)(
                 phase <= 100 ? phase : 200 - phase);
 
-            if (m_active_parameter == LEDS_CONTROL_SATURATION)
+            if (active_parameter == LC_SATURATION)
                 next_saturation = next_component;
             else
                 next_value = next_component;
@@ -139,7 +138,7 @@ void leds_control_hsv_process(uint32_t now) {
         }
 
         default:
-            m_change_state = CHANGE_IDLE;
+            change_state = CHANGE_IDLE;
             return;
     }
 

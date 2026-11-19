@@ -6,12 +6,12 @@
 
 #include "../leds_control.h"
 
-void leds_control_hsv_init(void);
+void hsv_init(void);
 
-bool leds_control_hsv_start(leds_control_hsv_parameter_t parameter);
+bool hsv_start(lc_hsv_parameter_t parameter);
 
-void leds_control_hsv_stop(void);
+void hsv_stop(void);
 
-void leds_control_hsv_process(uint32_t now);
+void hsv_process(uint32_t now);
 
 #endif

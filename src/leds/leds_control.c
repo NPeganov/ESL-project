@@ -11,76 +11,74 @@
 
 #define CONTROL_TIMER_INTERVAL_MS 10
 
-APP_TIMER_DEF(m_control_timer);
+APP_TIMER_DEF(control_timer);
 
-static bool m_initialized;
+static bool initialized;
 
-static void control_timer_handler(void *p_context);
+static void timer_handler(void *p_context);
 
-bool leds_control_init(void) {
-    if (m_initialized) return false;
+bool lc_init(void) {
+    if (initialized) return false;
 
     if (!leds_pwm_init()) return false;
 
-    leds_control_hsv_init();
-    leds_control_yellow_init();
+    hsv_init();
+    yellow_init();
 
     if (app_timer_create(
-            &m_control_timer,
+            &control_timer,
             APP_TIMER_MODE_REPEATED,
-            control_timer_handler) != NRF_SUCCESS)
+            timer_handler) != NRF_SUCCESS)
         return false;
 
-    m_initialized = true;
+    initialized = true;
 
     if (app_timer_start(
-            m_control_timer,
+            control_timer,
             APP_TIMER_TICKS(CONTROL_TIMER_INTERVAL_MS),
             NULL) != NRF_SUCCESS) {
-        m_initialized = false;
+        initialized = false;
         return false;
     }
 
     return true;
 }
 
-void leds_control_set_hsv(
+void lc_set_hsv(
     uint16_t hue,
     uint8_t saturation,
     uint8_t value) {
     leds_pwm_set_hsv(hue, saturation, value);
 }
 
-void leds_control_get_hsv(
+void lc_get_hsv(
     uint16_t *hue,
     uint8_t *saturation,
     uint8_t *value) {
     leds_pwm_get_hsv(hue, saturation, value);
 }
 
-bool leds_control_start_hsv_change(
-    leds_control_hsv_parameter_t parameter) {
-    if (!m_initialized) return false;
+bool lc_start_hsv_change(lc_hsv_parameter_t parameter) {
+    if (!initialized) return false;
 
-    return leds_control_hsv_start(parameter);
+    return hsv_start(parameter);
 }
 
-void leds_control_stop_hsv_change(void) {
-    leds_control_hsv_stop();
+void lc_stop_hsv_change(void) {
+    hsv_stop();
 }
 
-bool leds_control_set_yellow_pattern(
-    leds_control_yellow_pattern_t pattern) {
-    if (!m_initialized) return false;
+bool lc_set_yellow_pattern(lc_yellow_pattern_t pattern) {
+    if (!initialized) return false;
 
-    return leds_control_yellow_set_pattern(pattern);
+    return yellow_set_pattern(pattern);
 }
 
-static void control_timer_handler(void *p_context) {
+static void timer_handler(void *p_context) {
     uint32_t now = app_timer_cnt_get();
 
     (void)p_context;
 
-    leds_control_hsv_process(now);
-    leds_control_yellow_process(now);
+    hsv_process(now);
+    yellow_process(now);
 }

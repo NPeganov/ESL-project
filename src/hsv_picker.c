@@ -8,8 +8,6 @@
 #include "log/log.h"
 #include "timer_service/timer_service.h"
 
-#include "hsv_picker.h"
-
 // Device ID used to derive the initial Hue value.
 #define DEVICE_ID "6609"
 
@@ -26,8 +24,8 @@ static bool m_parameter_changing;
 static void button_event_handler(btn_event_t event);
 static void mode_advance(void);
 static void mode_set(hsv_picker_mode_t mode);
-static leds_control_hsv_parameter_t mode_get_parameter(hsv_picker_mode_t mode);
-static leds_control_yellow_pattern_t mode_get_yellow_pattern(hsv_picker_mode_t mode);
+static lc_hsv_parameter_t mode_get_parameter(hsv_picker_mode_t mode);
+static lc_yellow_pattern_t mode_get_yellow_pattern(hsv_picker_mode_t mode);
 static char const *mode_get_name(hsv_picker_mode_t mode);
 static uint16_t initial_hue_get(void);
 
@@ -35,21 +33,20 @@ bool hsv_picker_init(void) {
     if (!timer_service_init())
         return false;
 
-    if (!leds_control_init())
+    if (!lc_init())
         return false;
 
     m_mode = MODE_NO_INPUT;
     m_parameter_changing = false;
 
-    leds_control_set_hsv(initial_hue_get(), 100, 100);
+    lc_set_hsv(initial_hue_get(), 100, 100);
     btn_init(button_event_handler);
 
     return true;
 }
 
 void hsv_picker_start(void) {
-    if (!leds_control_set_yellow_pattern(
-            LEDS_CONTROL_YELLOW_OFF))
+    if (!lc_set_yellow_pattern(LC_YELLOW_OFF))
         APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
 
     btn_start();
@@ -66,14 +63,13 @@ static void button_event_handler(btn_event_t event) {
             if (m_mode == MODE_NO_INPUT || m_parameter_changing)
                 break;
 
-            if (!leds_control_start_hsv_change(
-                    mode_get_parameter(m_mode))) {
+            if (!lc_start_hsv_change(mode_get_parameter(m_mode))) {
                 LOG_ERROR("Failed to start HSV parameter change");
                 break;
             }
 
             m_parameter_changing = true;
-            leds_control_get_hsv(&hue, &saturation, &value);
+            lc_get_hsv(&hue, &saturation, &value);
 
             LOG_INFO(
                 "HSV start: H=%u S=%u V=%u",
@@ -86,9 +82,9 @@ static void button_event_handler(btn_event_t event) {
             if (!m_parameter_changing)
                 break;
 
-            leds_control_stop_hsv_change();
+            lc_stop_hsv_change();
             m_parameter_changing = false;
-            leds_control_get_hsv(&hue, &saturation, &value);
+            lc_get_hsv(&hue, &saturation, &value);
 
             LOG_INFO(
                 "HSV final: H=%u S=%u V=%u",
@@ -129,7 +125,7 @@ static void mode_advance(void) {
 }
 
 static void mode_set(hsv_picker_mode_t mode) {
-    if (!leds_control_set_yellow_pattern(mode_get_yellow_pattern(mode)))
+    if (!lc_set_yellow_pattern(mode_get_yellow_pattern(mode)))
         APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
 
     m_mode = mode;
@@ -137,36 +133,35 @@ static void mode_set(hsv_picker_mode_t mode) {
     LOG_INFO("HSV mode: %s", mode_get_name(m_mode));
 }
 
-static leds_control_hsv_parameter_t mode_get_parameter(hsv_picker_mode_t mode) {
+static lc_hsv_parameter_t mode_get_parameter(hsv_picker_mode_t mode) {
     switch (mode) {
         case MODE_HUE:
-            return LEDS_CONTROL_HUE;
+            return LC_HUE;
 
         case MODE_SATURATION:
-            return LEDS_CONTROL_SATURATION;
+            return LC_SATURATION;
 
         case MODE_BRIGHTNESS:
         case MODE_NO_INPUT:
         default:
-            return LEDS_CONTROL_VALUE;
+            return LC_VALUE;
     }
 }
 
-static leds_control_yellow_pattern_t mode_get_yellow_pattern(
-    hsv_picker_mode_t mode) {
+static lc_yellow_pattern_t mode_get_yellow_pattern(hsv_picker_mode_t mode) {
     switch (mode) {
         case MODE_HUE:
-            return LEDS_CONTROL_YELLOW_SLOW_BLINK;
+            return LC_YELLOW_SLOW_BLINK;
 
         case MODE_SATURATION:
-            return LEDS_CONTROL_YELLOW_FAST_BLINK;
+            return LC_YELLOW_FAST_BLINK;
 
         case MODE_BRIGHTNESS:
-            return LEDS_CONTROL_YELLOW_ON;
+            return LC_YELLOW_ON;
 
         case MODE_NO_INPUT:
         default:
-            return LEDS_CONTROL_YELLOW_OFF;
+            return LC_YELLOW_OFF;
     }
 }
 
