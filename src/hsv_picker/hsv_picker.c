@@ -90,13 +90,13 @@ static void button_press(void) {
     if (m_mode == MODE_NO_INPUT || m_changing)
         return;
 
-    if (!lc_start_hsv_change(m_mode_config[m_mode].parameter)) {
+    if (!lc_start_hsv_change(m_mode_config[m_mode].hsv_parameter)) {
         LOG_ERROR("Failed to start HSV parameter change");
         return;
     }
 
     m_changing = true;
-    log_parameter("start", m_mode_config[m_mode].parameter);
+    log_parameter("start", m_mode_config[m_mode].hsv_parameter);
 }
 
 static void button_release(void) {
@@ -105,19 +105,19 @@ static void button_release(void) {
 
     lc_stop_hsv_change();
     m_changing = false;
-    log_parameter("final", m_mode_config[m_mode].parameter);
+    log_parameter("final", m_mode_config[m_mode].hsv_parameter);
 }
 
 static void mode_advance(void) {
-    mode_config_t const *info;
+    mode_config_t const *config;
 
     m_mode = (m_mode + 1) % MODE_COUNT;
-    info = &m_mode_config[m_mode];
+    config = &m_mode_config[m_mode];
 
-    if (!lc_set_yellow_pattern(info->yellow_pattern))
+    if (!lc_set_yellow_pattern(config->yellow_pattern))
         APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
 
-    LOG_INFO("HSV mode: %s", info->mode_name);
+    LOG_INFO("HSV mode: %s", config->mode_name);
 }
 
 static void log_parameter(char const *event, lc_hsv_parameter_t parameter) {
