@@ -10,9 +10,9 @@
 #define YELLOW_SLOW_BLINK_MS 1000
 #define YELLOW_FAST_BLINK_MS 150
 
-static lc_yellow_pattern_t pattern;
-static bool state;
-static uint32_t toggle_tick;
+static lc_yellow_pattern_t pattern;    // Selected indication pattern.
+static bool state;                     // Current yellow LED output state.
+static uint32_t toggle_tick;           // Timestamp of the last scheduled toggle.
 
 void yellow_init(void) {
     pattern = LC_YELLOW_OFF;
@@ -22,6 +22,7 @@ void yellow_init(void) {
     leds_pwm_set_yellow_brightness(0);
 }
 
+// Sets the initial output state and restarts the pattern timing.
 bool yellow_set_pattern(lc_yellow_pattern_t new_pattern) {
     uint8_t brightness;
 
@@ -48,6 +49,7 @@ bool yellow_set_pattern(lc_yellow_pattern_t new_pattern) {
     return true;
 }
 
+// Applies all elapsed toggles, preserving the blink phase if a callback is delayed.
 void yellow_process(uint32_t now) {
     uint32_t interval_ms;
     uint32_t interval_ticks;
@@ -66,8 +68,10 @@ void yellow_process(uint32_t now) {
 
     if (toggle_count == 0) return;
 
+    // Advance by whole intervals rather than by now to prevent timing drift.
     toggle_tick += toggle_count * interval_ticks;
 
+    // An even number of missed toggles leaves the output in its current state.
     if (toggle_count % 2 == 0) return;
 
     state = !state;

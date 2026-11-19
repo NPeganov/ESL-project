@@ -16,11 +16,11 @@ typedef enum {
     CHANGE_PAUSED
 } change_state_t;
 
-static change_state_t change_state;
-static lc_hsv_parameter_t active_parameter;
-static uint16_t start_value;
-static uint32_t elapsed_ticks;
-static uint32_t last_tick;
+static change_state_t change_state;             // Current change lifecycle state.
+static lc_hsv_parameter_t active_parameter;     // HSV component being changed.
+static uint16_t start_value;                    // Component value when this run began.
+static uint32_t elapsed_ticks;                  // Accumulated active time, excluding pauses.
+static uint32_t last_tick;                      // Timestamp of the previous update.
 
 void hsv_init(void) {
     change_state = CHANGE_IDLE;
@@ -68,6 +68,7 @@ bool hsv_start(lc_hsv_parameter_t parameter) {
 void hsv_stop(void) {
     if (change_state != CHANGE_RUNNING) return;
 
+    // Account for time since the last timer callback before pausing.
     elapsed_ticks += app_timer_cnt_diff_compute(
         app_timer_cnt_get(),
         last_tick);
@@ -98,7 +99,7 @@ void hsv_process(uint32_t now) {
         case LC_HUE: {
             uint32_t cycle_ticks = APP_TIMER_TICKS(HUE_CYCLE_DURATION_MS);
 
-            // Rotate from the current Hue at a constant rate, wrapping at 360 degrees.
+            // Calculate Hue from the original value and total active time to avoid drift.
             uint16_t hue_delta = (uint16_t)(
                 (uint64_t)(elapsed_ticks % cycle_ticks) *
                 360 / cycle_ticks);
@@ -114,7 +115,7 @@ void hsv_process(uint32_t now) {
                 (uint64_t)elapsed_ticks * 100 /
                 half_cycle_ticks);
 
-            // A 0..100..0 triangle wave starts by moving toward 100.
+            // The triangle wave moves 0..100..0, starting toward 100 from the initial value.
             uint16_t phase = (start_value + steps) % 200;
             uint8_t next_component = (uint8_t)(
                 phase <= 100 ? phase : 200 - phase);
@@ -124,9 +125,11 @@ void hsv_process(uint32_t now) {
             break;
         }
 
+        // A running change must always have a valid active parameter.
         default: change_state = CHANGE_IDLE; return;
     }
 
+    // Avoid unnecessary writes when the calculated color has not changed.
     if (next_hue != hue ||
         next_saturation != saturation ||
         next_value != value)
