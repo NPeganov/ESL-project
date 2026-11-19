@@ -234,7 +234,7 @@ static void rgb_value_callback(uint16_t value, void *context) {
 
     switch (*parameter) {
         case LEDS_CONTROL_HUE:
-            hue = value;
+            hue = value % 360;
             break;
 
         case LEDS_CONTROL_SATURATION:

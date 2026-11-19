@@ -15,10 +15,6 @@ typedef struct {
 
     uint16_t step_index;
 
-    // Start value is used only while the first step is active.
-    uint16_t start_value;
-    bool start_value_pending;
-
     // Start time of the current step in app_timer ticks.
     uint32_t start_time;
 
@@ -29,8 +25,6 @@ typedef struct {
 bool executor_start(
     executor_t *executor,
     sequencer_config_t const *config,
-    sequencer_start_mode_t start_mode,
-    uint16_t current_value,
     sequencer_callback_t callback,
     void *context);
 

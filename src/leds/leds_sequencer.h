@@ -11,7 +11,7 @@ typedef enum {
 
 typedef enum {
     SEQUENCER_START_FROM_STEP,
-    SEQUENCER_START_CURRENT
+    SEQUENCER_START_CURRENT // Replace the first step with a smooth start from the current value.
 } sequencer_start_mode_t;
 
 typedef enum {

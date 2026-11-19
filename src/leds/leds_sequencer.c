@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <stdint.h>
 
 #include "app_error.h"
 #include "app_timer.h"
@@ -10,15 +11,39 @@
 
 #define SEQUENCER_TIMER_INTERVAL_MS 10
 
-static executor_t m_yellow_executor;
-static executor_t m_rgb_executor;
+typedef enum {
+    SEQUENCER_PHASE_IDLE,
+    SEQUENCER_PHASE_SMOOTH_START,
+    SEQUENCER_PHASE_CONTINUATION,
+    SEQUENCER_PHASE_NORMAL
+} sequencer_phase_t;
+
+typedef struct {
+    executor_t executor;
+    sequencer_phase_t phase;
+
+    sequencer_config_t original_config;
+    sequencer_step_t smooth_step;
+    sequencer_config_t smooth_config;
+    sequencer_config_t continuation_config;
+
+    sequencer_callback_t callback;
+    void *context;
+} sequencer_t;
+
+static sequencer_t m_yellow_sequencer;
+static sequencer_t m_rgb_sequencer;
 
 static bool m_initialized;
 
 APP_TIMER_DEF(m_timer);
 
-static executor_t *executor_get(sequencer_led_id_t id);
+static sequencer_t *sequencer_get(sequencer_led_id_t id);
 static void timer_callback(void *p_context);
+static void sequencer_process(sequencer_t *sequencer);
+static bool config_is_valid(sequencer_config_t const *config);
+static bool config_has_timed_step(sequencer_config_t const *config);
+static uint32_t smooth_duration_get(sequencer_step_t const *step, uint16_t current_value);
 
 bool sequencer_init(void) {
     ASSERT(!m_initialized);
@@ -49,20 +74,59 @@ bool sequencer_start(
     uint16_t current_value,
     sequencer_callback_t callback,
     void *context) {
-    executor_t *executor = executor_get(id);
+    sequencer_t *sequencer = sequencer_get(id);
+    bool result;
 
-    if (!m_initialized || executor == NULL)
+    if (!m_initialized || sequencer == NULL || callback == NULL ||
+        !config_is_valid(config))
+        return false;
+
+    if (start_mode != SEQUENCER_START_FROM_STEP &&
+        start_mode != SEQUENCER_START_CURRENT)
+        return false;
+
+    if (config->repeat && !config_has_timed_step(config))
         return false;
 
     CRITICAL_REGION_ENTER();
 
-    bool result = executor_start(
-        executor,
-        config,
-        start_mode,
-        current_value,
-        callback,
-        context);
+    sequencer->phase = SEQUENCER_PHASE_NORMAL;
+    sequencer->callback = callback;
+    sequencer->context = context;
+
+    if (start_mode == SEQUENCER_START_FROM_STEP) {
+        result = executor_start(
+            &sequencer->executor,
+            config,
+            callback,
+            context);
+    } else {
+        sequencer->original_config = *config;
+
+        sequencer->smooth_step.from = current_value;
+        sequencer->smooth_step.to = config->steps[0].to;
+        sequencer->smooth_step.duration_ms = smooth_duration_get(
+            &config->steps[0],
+            current_value);
+
+        sequencer->smooth_config.steps = &sequencer->smooth_step;
+        sequencer->smooth_config.step_count = 1;
+        sequencer->smooth_config.repeat = false;
+
+        sequencer->phase = SEQUENCER_PHASE_SMOOTH_START;
+
+        result = executor_start(
+            &sequencer->executor,
+            &sequencer->smooth_config,
+            callback,
+            context);
+    }
+
+    if (result && start_mode == SEQUENCER_START_CURRENT)
+        sequencer_process(sequencer);
+
+    if (!result)
+        sequencer->phase = SEQUENCER_PHASE_IDLE;
 
     CRITICAL_REGION_EXIT();
 
@@ -70,44 +134,48 @@ bool sequencer_start(
 }
 
 void sequencer_pause(sequencer_led_id_t id) {
-    executor_t *executor = executor_get(id);
+    sequencer_t *sequencer = sequencer_get(id);
 
-    if (executor == NULL) return;
+    if (sequencer == NULL) return;
 
     CRITICAL_REGION_ENTER();
-    executor_pause(executor);
+    executor_pause(&sequencer->executor);
     CRITICAL_REGION_EXIT();
 }
 
 void sequencer_resume(sequencer_led_id_t id) {
-    executor_t *executor = executor_get(id);
+    sequencer_t *sequencer = sequencer_get(id);
 
-    if (executor == NULL) return;
+    if (sequencer == NULL) return;
 
     CRITICAL_REGION_ENTER();
-    executor_resume(executor);
+    executor_resume(&sequencer->executor);
     CRITICAL_REGION_EXIT();
 }
 
 sequencer_state_t sequencer_get_state(sequencer_led_id_t id) {
-    executor_t *executor = executor_get(id);
+    sequencer_t *sequencer = sequencer_get(id);
     sequencer_state_t state;
 
-    if (executor == NULL) return SEQUENCER_STATE_IDLE;
+    if (sequencer == NULL) return SEQUENCER_STATE_IDLE;
 
     CRITICAL_REGION_ENTER();
-    state = executor_get_state(executor);
+    state = executor_get_state(&sequencer->executor);
+    if (state == SEQUENCER_STATE_IDLE &&
+        sequencer->phase != SEQUENCER_PHASE_IDLE &&
+        sequencer->phase != SEQUENCER_PHASE_NORMAL)
+        state = SEQUENCER_STATE_RUNNING;
     CRITICAL_REGION_EXIT();
 
     return state;
 }
 
-static executor_t *executor_get(sequencer_led_id_t id) {
+static sequencer_t *sequencer_get(sequencer_led_id_t id) {
     switch (id) {
         case SEQUENCER_YELLOW_LED:
-            return &m_yellow_executor;
+            return &m_yellow_sequencer;
         case SEQUENCER_RGB_LED:
-            return &m_rgb_executor;
+            return &m_rgb_sequencer;
         default:
             return NULL;
     }
@@ -116,6 +184,99 @@ static executor_t *executor_get(sequencer_led_id_t id) {
 static void timer_callback(void *p_context) {
     (void)p_context;
 
-    executor_process(&m_yellow_executor);
-    executor_process(&m_rgb_executor);
+    sequencer_process(&m_yellow_sequencer);
+    sequencer_process(&m_rgb_sequencer);
+}
+
+static void sequencer_process(sequencer_t *sequencer) {
+    while (sequencer->phase != SEQUENCER_PHASE_IDLE) {
+        executor_process(&sequencer->executor);
+
+        if (executor_get_state(&sequencer->executor) != SEQUENCER_STATE_IDLE)
+            return;
+
+        if (sequencer->phase == SEQUENCER_PHASE_SMOOTH_START) {
+            if (sequencer->original_config.step_count > 1) {
+                sequencer->continuation_config.steps =
+                    &sequencer->original_config.steps[1];
+                sequencer->continuation_config.step_count =
+                    sequencer->original_config.step_count - 1;
+                sequencer->continuation_config.repeat = false;
+                sequencer->phase = SEQUENCER_PHASE_CONTINUATION;
+
+                if (!executor_start(
+                        &sequencer->executor,
+                        &sequencer->continuation_config,
+                        sequencer->callback,
+                        sequencer->context)) {
+                    sequencer->phase = SEQUENCER_PHASE_IDLE;
+                    return;
+                }
+            } else if (sequencer->original_config.repeat) {
+                sequencer->phase = SEQUENCER_PHASE_NORMAL;
+
+                if (!executor_start(
+                        &sequencer->executor,
+                        &sequencer->original_config,
+                        sequencer->callback,
+                        sequencer->context)) {
+                    sequencer->phase = SEQUENCER_PHASE_IDLE;
+                    return;
+                }
+            } else {
+                sequencer->phase = SEQUENCER_PHASE_IDLE;
+                return;
+            }
+        } else if (sequencer->phase == SEQUENCER_PHASE_CONTINUATION) {
+            if (sequencer->original_config.repeat) {
+                sequencer->phase = SEQUENCER_PHASE_NORMAL;
+
+                if (!executor_start(
+                        &sequencer->executor,
+                        &sequencer->original_config,
+                        sequencer->callback,
+                        sequencer->context)) {
+                    sequencer->phase = SEQUENCER_PHASE_IDLE;
+                    return;
+                }
+            } else {
+                sequencer->phase = SEQUENCER_PHASE_IDLE;
+                return;
+            }
+        } else {
+            sequencer->phase = SEQUENCER_PHASE_IDLE;
+            return;
+        }
+    }
+}
+
+static bool config_is_valid(sequencer_config_t const *config) {
+    if (config == NULL) return false;
+    if (config->steps == NULL) return false;
+    if (config->step_count == 0) return false;
+
+    return true;
+}
+
+static bool config_has_timed_step(sequencer_config_t const *config) {
+    for (uint16_t i = 0; i < config->step_count; i++)
+        if (config->steps[i].duration_ms > 0) return true;
+
+    return false;
+}
+
+static uint32_t smooth_duration_get(
+    sequencer_step_t const *step,
+    uint16_t current_value) {
+    uint32_t original_distance = step->from > step->to ?
+        step->from - step->to : step->to - step->from;
+    uint32_t remaining_distance = current_value > step->to ?
+        current_value - step->to : step->to - current_value;
+
+    if (original_distance == 0)
+        return step->duration_ms;
+
+    return (uint32_t)(
+        (uint64_t)step->duration_ms * remaining_distance /
+        original_distance);
 }
