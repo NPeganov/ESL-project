@@ -111,10 +111,7 @@ static bool executor_advance(executor_t *executor) {
 
 static void executor_clear(executor_t *executor) {
     executor->state = SEQUENCER_STATE_IDLE;
-    executor->config = (sequencer_config_t){ 0 };
+    executor->config.steps = NULL;
     executor->callback = NULL;
     executor->context = NULL;
-    executor->step_index = 0;
-    executor->start_time = 0;
-    executor->elapsed_time = 0;
 }
