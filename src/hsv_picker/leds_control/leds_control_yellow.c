@@ -17,9 +17,6 @@ static uint32_t toggle_tick;           // Timestamp of the last scheduled toggle
 void yellow_init(void) {
     pattern = LC_YELLOW_OFF;
     state = false;
-    toggle_tick = app_timer_cnt_get();
-
-    leds_pwm_set_yellow_brightness(0);
 }
 
 // Sets the initial output state and restarts the pattern timing.

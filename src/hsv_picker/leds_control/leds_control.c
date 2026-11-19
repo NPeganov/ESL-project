@@ -23,6 +23,8 @@ bool lc_init(void) {
 
     if (!leds_pwm_init()) return false;
 
+    leds_pwm_set_yellow_brightness(0);
+
     hsv_init();
     yellow_init();
 
