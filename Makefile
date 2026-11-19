@@ -37,6 +37,9 @@ SRC_FILES += \
   $(PROJ_DIR)/hardware/pwm/internal/pwm_internal.c \
   $(PROJ_DIR)/leds/leds_pwm.c \
   $(PROJ_DIR)/leds/internal/color.c \
+  $(PROJ_DIR)/hsv_picker/leds_control/leds_control.c \
+  $(PROJ_DIR)/hsv_picker/leds_control/leds_control_hsv.c \
+  $(PROJ_DIR)/hsv_picker/leds_control/leds_control_yellow.c \
   $(PROJ_DIR)/btn/btn.c \
   $(PROJ_DIR)/btn/btn_hw.c \
   $(PROJ_DIR)/log/log.c \
