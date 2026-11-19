@@ -98,7 +98,9 @@ bool sequencer_start(
         sequencer->smooth_step.from = current_value;
         sequencer->smooth_step.to = config->steps[0].to;
         sequencer->smooth_step.duration_ms = get_smooth_duration(
-            &config->steps[0],
+            config->steps[0].from,
+            config->steps[0].to,
+            config->steps[0].duration_ms,
             current_value);
 
         smooth_config.steps = &sequencer->smooth_step;
