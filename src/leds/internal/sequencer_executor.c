@@ -1,4 +1,3 @@
-#include <stddef.h>
 #include <stdint.h>
 
 #include "app_timer.h"
@@ -24,8 +23,6 @@ void executor_start(
 }
 
 void executor_pause(executor_t *executor) {
-    if (executor == NULL) return;
-
     if (executor->state == SEQUENCER_STATE_RUNNING) {
         executor->elapsed_time = app_timer_cnt_diff_compute(
             app_timer_cnt_get(),
@@ -36,18 +33,10 @@ void executor_pause(executor_t *executor) {
 }
 
 void executor_resume(executor_t *executor) {
-    if (executor == NULL) return;
-
     if (executor->state == SEQUENCER_STATE_PAUSED) {
         executor->start_time = app_timer_cnt_get() - executor->elapsed_time;
         executor->state = SEQUENCER_STATE_RUNNING;
     }
-}
-
-sequencer_state_t executor_get_state(executor_t const *executor) {
-    if (executor == NULL) return SEQUENCER_STATE_IDLE;
-
-    return executor->state;
 }
 
 void executor_process(executor_t *executor) {
