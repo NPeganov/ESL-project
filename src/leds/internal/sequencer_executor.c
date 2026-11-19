@@ -6,22 +6,14 @@
 #include "interpol.h"
 #include "sequencer_executor.h"
 
-static bool config_is_valid(sequencer_config_t const *config);
-static bool config_has_timed_step(sequencer_config_t const *config);
 static bool executor_advance(executor_t *executor);
 static void executor_clear(executor_t *executor);
 
-bool executor_start(
+void executor_start(
     executor_t *executor,
     sequencer_config_t const *config,
     sequencer_callback_t callback,
     void *context) {
-    if (executor == NULL || !config_is_valid(config) || callback == NULL)
-        return false;
-
-    if (config->repeat && !config_has_timed_step(config))
-        return false;
-
     executor->config = *config;
     executor->callback = callback;
     executor->context = context;
@@ -29,8 +21,6 @@ bool executor_start(
     executor->start_time = app_timer_cnt_get();
     executor->elapsed_time = 0;
     executor->state = SEQUENCER_STATE_RUNNING;
-
-    return true;
 }
 
 void executor_pause(executor_t *executor) {
@@ -101,21 +91,6 @@ void executor_process(executor_t *executor) {
 
         return;
     }
-}
-
-static bool config_is_valid(sequencer_config_t const *config) {
-    if (config == NULL) return false;
-    if (config->steps == NULL) return false;
-    if (config->step_count == 0) return false;
-
-    return true;
-}
-
-static bool config_has_timed_step(sequencer_config_t const *config) {
-    for (uint16_t i = 0; i < config->step_count; i++)
-        if (config->steps[i].duration_ms > 0) return true;
-
-    return false;
 }
 
 static bool executor_advance(executor_t *executor) {
