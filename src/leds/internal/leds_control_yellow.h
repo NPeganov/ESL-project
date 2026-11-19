@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "leds_control.h"
+#include "../leds_control.h"
 
 void leds_control_yellow_init(void);
 
