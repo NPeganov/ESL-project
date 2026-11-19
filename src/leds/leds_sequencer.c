@@ -24,8 +24,6 @@ typedef struct {
 
     sequencer_config_t original_config;
     sequencer_step_t smooth_step;
-    sequencer_config_t smooth_config;
-    sequencer_config_t continuation_config;
 
     sequencer_callback_t callback;
     void *context;
@@ -101,6 +99,8 @@ bool sequencer_start(
             callback,
             context);
     } else {
+        sequencer_config_t smooth_config;
+
         sequencer->original_config = *config;
 
         sequencer->smooth_step.from = current_value;
@@ -109,15 +109,15 @@ bool sequencer_start(
             &config->steps[0],
             current_value);
 
-        sequencer->smooth_config.steps = &sequencer->smooth_step;
-        sequencer->smooth_config.step_count = 1;
-        sequencer->smooth_config.repeat = false;
+        smooth_config.steps = &sequencer->smooth_step;
+        smooth_config.step_count = 1;
+        smooth_config.repeat = false;
 
         sequencer->phase = SEQUENCER_PHASE_SMOOTH_START;
 
         result = executor_start(
             &sequencer->executor,
-            &sequencer->smooth_config,
+            &smooth_config,
             callback,
             context);
     }
@@ -190,60 +190,33 @@ static void timer_callback(void *p_context) {
 
 static void sequencer_process(sequencer_t *sequencer) {
     while (sequencer->phase != SEQUENCER_PHASE_IDLE) {
+        sequencer_config_t config;
+
         executor_process(&sequencer->executor);
 
         if (executor_get_state(&sequencer->executor) != SEQUENCER_STATE_IDLE)
             return;
 
-        if (sequencer->phase == SEQUENCER_PHASE_SMOOTH_START) {
-            if (sequencer->original_config.step_count > 1) {
-                sequencer->continuation_config.steps =
-                    &sequencer->original_config.steps[1];
-                sequencer->continuation_config.step_count =
-                    sequencer->original_config.step_count - 1;
-                sequencer->continuation_config.repeat = false;
-                sequencer->phase = SEQUENCER_PHASE_CONTINUATION;
-
-                if (!executor_start(
-                        &sequencer->executor,
-                        &sequencer->continuation_config,
-                        sequencer->callback,
-                        sequencer->context)) {
-                    sequencer->phase = SEQUENCER_PHASE_IDLE;
-                    return;
-                }
-            } else if (sequencer->original_config.repeat) {
-                sequencer->phase = SEQUENCER_PHASE_NORMAL;
-
-                if (!executor_start(
-                        &sequencer->executor,
-                        &sequencer->original_config,
-                        sequencer->callback,
-                        sequencer->context)) {
-                    sequencer->phase = SEQUENCER_PHASE_IDLE;
-                    return;
-                }
-            } else {
-                sequencer->phase = SEQUENCER_PHASE_IDLE;
-                return;
-            }
-        } else if (sequencer->phase == SEQUENCER_PHASE_CONTINUATION) {
-            if (sequencer->original_config.repeat) {
-                sequencer->phase = SEQUENCER_PHASE_NORMAL;
-
-                if (!executor_start(
-                        &sequencer->executor,
-                        &sequencer->original_config,
-                        sequencer->callback,
-                        sequencer->context)) {
-                    sequencer->phase = SEQUENCER_PHASE_IDLE;
-                    return;
-                }
-            } else {
-                sequencer->phase = SEQUENCER_PHASE_IDLE;
-                return;
-            }
+        if (sequencer->phase == SEQUENCER_PHASE_SMOOTH_START &&
+            sequencer->original_config.step_count > 1) {
+            config.steps = &sequencer->original_config.steps[1];
+            config.step_count = sequencer->original_config.step_count - 1;
+            config.repeat = false;
+            sequencer->phase = SEQUENCER_PHASE_CONTINUATION;
+        } else if (sequencer->phase != SEQUENCER_PHASE_NORMAL &&
+                   sequencer->original_config.repeat) {
+            config = sequencer->original_config;
+            sequencer->phase = SEQUENCER_PHASE_NORMAL;
         } else {
+            sequencer->phase = SEQUENCER_PHASE_IDLE;
+            return;
+        }
+
+        if (!executor_start(
+                &sequencer->executor,
+                &config,
+                sequencer->callback,
+                sequencer->context)) {
             sequencer->phase = SEQUENCER_PHASE_IDLE;
             return;
         }
