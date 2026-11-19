@@ -30,8 +30,6 @@ void executor_start(
 void executor_pause(executor_t *executor);
 void executor_resume(executor_t *executor);
 
-sequencer_state_t executor_get_state(executor_t const *executor);
-
 void executor_process(executor_t *executor);
 
 #endif
