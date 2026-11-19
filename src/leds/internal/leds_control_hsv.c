@@ -52,17 +52,9 @@ bool hsv_start(lc_hsv_parameter_t parameter) {
     leds_pwm_get_hsv(&hue, &saturation, &value);
 
     switch (parameter) {
-        case LC_HUE:
-            start_value = hue;
-            break;
-
-        case LC_SATURATION:
-            start_value = saturation;
-            break;
-
-        case LC_VALUE:
-            start_value = value;
-            break;
+        case LC_HUE: start_value = hue; break;
+        case LC_SATURATION: start_value = saturation; break;
+        case LC_VALUE: start_value = value; break;
     }
 
     active_parameter = parameter;
@@ -127,16 +119,12 @@ void hsv_process(uint32_t now) {
             uint8_t next_component = (uint8_t)(
                 phase <= 100 ? phase : 200 - phase);
 
-            if (active_parameter == LC_SATURATION)
-                next_saturation = next_component;
-            else
-                next_value = next_component;
+            if (active_parameter == LC_SATURATION) next_saturation = next_component;
+            else next_value = next_component;
             break;
         }
 
-        default:
-            change_state = CHANGE_IDLE;
-            return;
+        default: change_state = CHANGE_IDLE; return;
     }
 
     if (next_hue != hue ||

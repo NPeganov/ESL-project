@@ -38,8 +38,7 @@ bool yellow_set_pattern(lc_yellow_pattern_t new_pattern) {
             brightness = 100;
             break;
 
-        default:
-            return false;
+        default: return false;
     }
 
     pattern = new_pattern;
@@ -56,16 +55,9 @@ void yellow_process(uint32_t now) {
     uint32_t toggle_count;
 
     switch (pattern) {
-        case LC_YELLOW_SLOW_BLINK:
-            interval_ms = YELLOW_SLOW_BLINK_MS;
-            break;
-
-        case LC_YELLOW_FAST_BLINK:
-            interval_ms = YELLOW_FAST_BLINK_MS;
-            break;
-
-        default:
-            return;
+        case LC_YELLOW_SLOW_BLINK: interval_ms = YELLOW_SLOW_BLINK_MS; break;
+        case LC_YELLOW_FAST_BLINK: interval_ms = YELLOW_FAST_BLINK_MS; break;
+        default: return;
     }
 
     interval_ticks = APP_TIMER_TICKS(interval_ms);
