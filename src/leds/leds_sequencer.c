@@ -12,7 +12,6 @@
 #define SEQUENCER_TIMER_INTERVAL_MS 10
 
 typedef enum {
-    SEQUENCER_PHASE_IDLE,
     SEQUENCER_PHASE_SMOOTH_START,
     SEQUENCER_PHASE_CONTINUATION,
     SEQUENCER_PHASE_NORMAL
@@ -176,7 +175,10 @@ static void timer_callback(void *p_context) {
 }
 
 static void sequencer_process(sequencer_t *sequencer) {
-    while (sequencer->phase != SEQUENCER_PHASE_IDLE) {
+    if (sequencer->executor.state == SEQUENCER_STATE_IDLE)
+        return;
+
+    while (1) {
         sequencer_config_t config;
 
         executor_process(
@@ -198,7 +200,6 @@ static void sequencer_process(sequencer_t *sequencer) {
             config = sequencer->original_config;
             sequencer->phase = SEQUENCER_PHASE_NORMAL;
         } else {
-            sequencer->phase = SEQUENCER_PHASE_IDLE;
             sequencer->callback = NULL;
             sequencer->context = NULL;
             return;
