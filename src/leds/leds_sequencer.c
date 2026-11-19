@@ -94,9 +94,7 @@ bool sequencer_start(
     if (start_mode == SEQUENCER_START_FROM_STEP) {
         executor_start(
             &sequencer->executor,
-            config,
-            callback,
-            context);
+            config);
     } else {
         sequencer_config_t smooth_config;
 
@@ -116,9 +114,7 @@ bool sequencer_start(
 
         executor_start(
             &sequencer->executor,
-            &smooth_config,
-            callback,
-            context);
+            &smooth_config);
     }
 
     sequencer_process(sequencer);
@@ -183,7 +179,10 @@ static void sequencer_process(sequencer_t *sequencer) {
     while (sequencer->phase != SEQUENCER_PHASE_IDLE) {
         sequencer_config_t config;
 
-        executor_process(&sequencer->executor);
+        executor_process(
+            &sequencer->executor,
+            sequencer->callback,
+            sequencer->context);
 
         if (sequencer->executor.state != SEQUENCER_STATE_IDLE)
             return;
@@ -200,14 +199,14 @@ static void sequencer_process(sequencer_t *sequencer) {
             sequencer->phase = SEQUENCER_PHASE_NORMAL;
         } else {
             sequencer->phase = SEQUENCER_PHASE_IDLE;
+            sequencer->callback = NULL;
+            sequencer->context = NULL;
             return;
         }
 
         executor_start(
             &sequencer->executor,
-            &config,
-            sequencer->callback,
-            sequencer->context);
+            &config);
     }
 }
 
