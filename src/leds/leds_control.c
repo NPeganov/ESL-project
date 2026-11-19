@@ -19,9 +19,11 @@ APP_TIMER_DEF(m_control_timer);
 static bool m_initialized;
 
 static bool m_hsv_change_active;
+static bool m_hsv_change_paused;
 static leds_control_hsv_parameter_t m_active_parameter;
 static uint16_t m_hsv_change_start_value;
-static uint32_t m_hsv_change_start_tick;
+static uint32_t m_hsv_change_elapsed_ticks;
+static uint32_t m_hsv_change_last_tick;
 
 static leds_control_yellow_pattern_t m_yellow_pattern;
 static bool m_yellow_state;
@@ -43,6 +45,7 @@ bool leds_control_init(void) {
         return false;
 
     m_hsv_change_active = false;
+    m_hsv_change_paused = false;
     m_yellow_pattern = LEDS_CONTROL_YELLOW_OFF;
     m_yellow_state = false;
     m_yellow_toggle_tick = app_timer_cnt_get();
@@ -78,6 +81,7 @@ bool leds_control_start_hsv_change(
     uint16_t hue;
     uint8_t saturation;
     uint8_t value;
+    uint32_t now;
 
     if (!m_initialized) return false;
 
@@ -88,6 +92,16 @@ bool leds_control_start_hsv_change(
 
     if (m_hsv_change_active && m_active_parameter == parameter)
         return true;
+
+    now = app_timer_cnt_get();
+
+    // Resume the same parameter without changing its position or direction.
+    if (m_hsv_change_paused && m_active_parameter == parameter) {
+        m_hsv_change_last_tick = now;
+        m_hsv_change_active = true;
+        m_hsv_change_paused = false;
+        return true;
+    }
 
     leds_pwm_get_hsv(&hue, &saturation, &value);
 
@@ -109,14 +123,23 @@ bool leds_control_start_hsv_change(
     }
 
     m_active_parameter = parameter;
-    m_hsv_change_start_tick = app_timer_cnt_get();
+    m_hsv_change_elapsed_ticks = 0;
+    m_hsv_change_last_tick = now;
     m_hsv_change_active = true;
+    m_hsv_change_paused = false;
 
     return true;
 }
 
 void leds_control_stop_hsv_change(void) {
+    if (!m_hsv_change_active) return;
+
+    m_hsv_change_elapsed_ticks += app_timer_cnt_diff_compute(
+        app_timer_cnt_get(),
+        m_hsv_change_last_tick);
+
     m_hsv_change_active = false;
+    m_hsv_change_paused = true;
 }
 
 bool leds_control_set_yellow_pattern(
@@ -159,14 +182,17 @@ static void control_timer_handler(void *p_context) {
 }
 
 static void hsv_change_process(uint32_t now) {
-    uint32_t elapsed;
     uint16_t hue;
     uint8_t saturation;
     uint8_t value;
 
     if (!m_hsv_change_active) return;
 
-    elapsed = app_timer_cnt_diff_compute(now, m_hsv_change_start_tick);
+    m_hsv_change_elapsed_ticks += app_timer_cnt_diff_compute(
+        now,
+        m_hsv_change_last_tick);
+    m_hsv_change_last_tick = now;
+
     leds_pwm_get_hsv(&hue, &saturation, &value);
 
     switch (m_active_parameter) {
@@ -175,7 +201,8 @@ static void hsv_change_process(uint32_t now) {
 
             // Rotate from the current Hue at a constant rate, wrapping at 360 degrees.
             uint16_t hue_delta = (uint16_t)(
-                (uint64_t)(elapsed % cycle_ticks) * 360 / cycle_ticks);
+                (uint64_t)(m_hsv_change_elapsed_ticks % cycle_ticks) *
+                360 / cycle_ticks);
             uint16_t next_hue = (m_hsv_change_start_value + hue_delta) % 360;
 
             if (next_hue != hue)
@@ -187,7 +214,8 @@ static void hsv_change_process(uint32_t now) {
         case LEDS_CONTROL_VALUE: {
             uint32_t half_cycle_ticks = APP_TIMER_TICKS(HSV_VALUE_HALF_CYCLE_MS);
             uint32_t steps = (uint32_t)(
-                (uint64_t)elapsed * 100 / half_cycle_ticks);
+                (uint64_t)m_hsv_change_elapsed_ticks * 100 /
+                half_cycle_ticks);
 
             // A 0..100..0 triangle wave starts by moving toward 100.
             uint16_t phase = (m_hsv_change_start_value + steps) % 200;
@@ -204,6 +232,7 @@ static void hsv_change_process(uint32_t now) {
 
         default:
             m_hsv_change_active = false;
+            m_hsv_change_paused = false;
             break;
     }
 }
