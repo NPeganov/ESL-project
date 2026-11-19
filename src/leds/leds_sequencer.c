@@ -156,10 +156,6 @@ sequencer_state_t sequencer_get_state(sequencer_led_id_t id) {
 
     CRITICAL_REGION_ENTER();
     state = executor_get_state(&sequencer->executor);
-    if (state == SEQUENCER_STATE_IDLE &&
-        sequencer->phase != SEQUENCER_PHASE_IDLE &&
-        sequencer->phase != SEQUENCER_PHASE_NORMAL)
-        state = SEQUENCER_STATE_RUNNING;
     CRITICAL_REGION_EXIT();
 
     return state;
