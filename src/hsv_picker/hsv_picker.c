@@ -4,7 +4,7 @@
 #include "app_error.h"
 
 #include "btn/btn.h"
-#include "leds/leds_control.h"
+#include "leds_control/leds_control.h"
 #include "log/log.h"
 #include "timer_service/timer_service.h"
 

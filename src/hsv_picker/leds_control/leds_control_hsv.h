@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "../leds_control.h"
+#include "leds_control.h"
 
 // Resets the HSV change state.
 void hsv_init(void);

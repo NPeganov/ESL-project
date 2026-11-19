@@ -3,7 +3,7 @@
 #include "app_error.h"
 #include "nrf.h"
 
-#include "hsv_picker.h"
+#include "hsv_picker/hsv_picker.h"
 #include "log/log.h"
 
 int main(void) {

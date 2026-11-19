@@ -5,9 +5,9 @@
 #include "nrf_error.h"
 
 #include "leds_control.h"
-#include "leds_pwm.h"
-#include "leds/internal/leds_control_hsv.h"
-#include "leds/internal/leds_control_yellow.h"
+#include "../../leds/leds_pwm.h"
+#include "leds_control_hsv.h"
+#include "leds_control_yellow.h"
 
 #define CONTROL_TIMER_INTERVAL_MS 10
 

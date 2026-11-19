@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "../leds_control.h"
+#include "leds_control.h"
 
 // Sets the initial yellow LED state to off.
 void yellow_init(void);

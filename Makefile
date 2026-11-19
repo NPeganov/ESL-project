@@ -33,14 +33,14 @@ SRC_FILES += \
   $(SDK_ROOT)/components/libraries/util/app_error_weak.c \
   $(SDK_ROOT)/components/libraries/strerror/nrf_strerror.c \
   $(PROJ_DIR)/main.c \
-  $(PROJ_DIR)/hsv_picker.c \
+  $(PROJ_DIR)/hsv_picker/hsv_picker.c \
   $(PROJ_DIR)/hardware/pwm/pwm.c \
   $(PROJ_DIR)/hardware/pwm/internal/pwm_internal.c \
   $(PROJ_DIR)/hardware/leds_gpio/leds_gpio.c \
   $(PROJ_DIR)/leds/leds_pwm.c \
-  $(PROJ_DIR)/leds/leds_control.c \
-  $(PROJ_DIR)/leds/internal/leds_control_hsv.c \
-  $(PROJ_DIR)/leds/internal/leds_control_yellow.c \
+  $(PROJ_DIR)/hsv_picker/leds_control/leds_control.c \
+  $(PROJ_DIR)/hsv_picker/leds_control/leds_control_hsv.c \
+  $(PROJ_DIR)/hsv_picker/leds_control/leds_control_yellow.c \
   $(PROJ_DIR)/leds/internal/color.c \
   $(PROJ_DIR)/timer_service/timer_service.c \
   $(PROJ_DIR)/btn/btn.c \

@@ -3,7 +3,7 @@
 
 #include "app_timer.h"
 
-#include "../leds_pwm.h"
+#include "../../leds/leds_pwm.h"
 #include "leds_control_yellow.h"
 
 // Yellow indicator intervals.
