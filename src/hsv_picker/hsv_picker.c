@@ -20,6 +20,7 @@ typedef enum {
 
 static hsv_picker_mode_t m_mode;
 static bool m_parameter_changing;
+static lc_hsv_parameter_t m_active_parameter;
 
 static void button_event_handler(btn_event_t event);
 static void mode_advance(void);
@@ -28,6 +29,7 @@ static lc_hsv_parameter_t mode_get_parameter(hsv_picker_mode_t mode);
 static lc_yellow_pattern_t mode_get_yellow_pattern(hsv_picker_mode_t mode);
 static char const *mode_get_name(hsv_picker_mode_t mode);
 static uint16_t initial_hue_get(void);
+static void log_parameter_value(char const *event, lc_hsv_parameter_t parameter);
 
 bool hsv_picker_init(void) {
     if (!timer_service_init())
@@ -53,29 +55,21 @@ void hsv_picker_start(void) {
 }
 
 static void button_event_handler(btn_event_t event) {
-    uint16_t hue;
-    uint8_t saturation;
-    uint8_t value;
-
     // This callback runs in interrupt context; logging is deferred by the logger.
     switch (event) {
         case BTN_EVENT_PRESS:
             if (m_mode == MODE_NO_INPUT || m_parameter_changing)
                 break;
 
-            if (!lc_start_hsv_change(mode_get_parameter(m_mode))) {
+            m_active_parameter = mode_get_parameter(m_mode);
+
+            if (!lc_start_hsv_change(m_active_parameter)) {
                 LOG_ERROR("Failed to start HSV parameter change");
                 break;
             }
 
             m_parameter_changing = true;
-            lc_get_hsv(&hue, &saturation, &value);
-
-            LOG_INFO(
-                "HSV start: H=%u S=%u V=%u",
-                (unsigned int)hue,
-                (unsigned int)saturation,
-                (unsigned int)value);
+            log_parameter_value("start", m_active_parameter);
             break;
 
         case BTN_EVENT_RELEASE:
@@ -84,13 +78,7 @@ static void button_event_handler(btn_event_t event) {
 
             lc_stop_hsv_change();
             m_parameter_changing = false;
-            lc_get_hsv(&hue, &saturation, &value);
-
-            LOG_INFO(
-                "HSV final: H=%u S=%u V=%u",
-                (unsigned int)hue,
-                (unsigned int)saturation,
-                (unsigned int)value);
+            log_parameter_value("final", m_active_parameter);
             break;
 
         case BTN_EVENT_DOUBLE_PRESS:
@@ -179,6 +167,28 @@ static char const *mode_get_name(hsv_picker_mode_t mode) {
         case MODE_NO_INPUT:
         default:
             return "NO_INPUT";
+    }
+}
+
+static void log_parameter_value(char const *event, lc_hsv_parameter_t parameter) {
+    uint16_t hue;
+    uint8_t saturation;
+    uint8_t value;
+
+    lc_get_hsv(&hue, &saturation, &value);
+
+    switch (parameter) {
+        case LC_HUE:
+            LOG_INFO("HSV %s: H=%u", event, (unsigned int)hue);
+            break;
+
+        case LC_SATURATION:
+            LOG_INFO("HSV %s: S=%u", event, (unsigned int)saturation);
+            break;
+
+        case LC_VALUE:
+            LOG_INFO("HSV %s: V=%u", event, (unsigned int)value);
+            break;
     }
 }
 
