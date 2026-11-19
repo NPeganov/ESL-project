@@ -6,7 +6,6 @@
 #include "sequencer_executor.h"
 
 static bool executor_advance(executor_t *executor);
-static void executor_clear(executor_t *executor);
 
 void executor_start(
     executor_t *executor,
@@ -79,16 +78,12 @@ static bool executor_advance(executor_t *executor) {
         return true;
 
     if (!executor->config.repeat) {
-        executor_clear(executor);
+        executor->state = SEQUENCER_STATE_IDLE;
+        executor->config.steps = NULL;
         return false;
     }
 
     executor->step_index = 0;
 
     return true;
-}
-
-static void executor_clear(executor_t *executor) {
-    executor->state = SEQUENCER_STATE_IDLE;
-    executor->config.steps = NULL;
 }
