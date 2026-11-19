@@ -29,7 +29,7 @@ void lc_set_hsv(
     uint8_t saturation,     // Saturation, 0..100.
     uint8_t value);         // Value, 0..100.
 
-// Gets the current RGB LED color. Any output pointer may be NULL.
+// Gets the current RGB LED color. All output pointers must be valid.
 void lc_get_hsv(
     uint16_t *hue,          // Receives Hue in degrees.
     uint8_t *saturation,    // Receives saturation, 0..100.
