@@ -34,7 +34,6 @@ static mode_info_t const m_mode_info[] = {
 
 static hsv_picker_mode_t m_mode;
 static bool m_changing;
-static lc_hsv_parameter_t m_parameter;
 
 static void button_event_handler(btn_event_t event);
 static void button_press(void);
@@ -91,15 +90,13 @@ static void button_press(void) {
     if (m_mode == MODE_NO_INPUT || m_changing)
         return;
 
-    m_parameter = m_mode_info[m_mode].parameter;
-
-    if (!lc_start_hsv_change(m_parameter)) {
+    if (!lc_start_hsv_change(m_mode_info[m_mode].parameter)) {
         LOG_ERROR("Failed to start HSV parameter change");
         return;
     }
 
     m_changing = true;
-    log_parameter("start", m_parameter);
+    log_parameter("start", m_mode_info[m_mode].parameter);
 }
 
 static void button_release(void) {
@@ -108,7 +105,7 @@ static void button_release(void) {
 
     lc_stop_hsv_change();
     m_changing = false;
-    log_parameter("final", m_parameter);
+    log_parameter("final", m_mode_info[m_mode].parameter);
 }
 
 static void mode_advance(void) {
