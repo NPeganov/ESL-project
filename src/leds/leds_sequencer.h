@@ -20,6 +20,11 @@ typedef enum {
     SEQUENCER_STATE_PAUSED
 } sequencer_state_t;
 
+typedef enum {
+    SEQUENCER_ACTION_PAUSE,
+    SEQUENCER_ACTION_RESUME
+} sequencer_action_t;
+
 typedef struct {
     uint16_t from; // Start value.
     uint16_t to; // Target value.
@@ -44,8 +49,9 @@ bool sequencer_start(
     sequencer_callback_t callback,
     void *context);
 
-void sequencer_pause(sequencer_led_id_t id);
-void sequencer_resume(sequencer_led_id_t id);
+void sequencer_apply_action(
+    sequencer_led_id_t id,
+    sequencer_action_t action);
 
 sequencer_state_t sequencer_get_state(sequencer_led_id_t id);
 

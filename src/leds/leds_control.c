@@ -138,7 +138,9 @@ bool leds_control_start_hsv_change(
         if (state == SEQUENCER_STATE_RUNNING) return true;
 
         if (state == SEQUENCER_STATE_PAUSED) {
-            sequencer_resume(SEQUENCER_RGB_LED);
+            sequencer_apply_action(
+                SEQUENCER_RGB_LED,
+                SEQUENCER_ACTION_RESUME);
             return true;
         }
     }
@@ -185,7 +187,9 @@ bool leds_control_start_hsv_change(
 
 void leds_control_stop_hsv_change(void) {
     if (m_initialized)
-        sequencer_pause(SEQUENCER_RGB_LED);
+        sequencer_apply_action(
+            SEQUENCER_RGB_LED,
+            SEQUENCER_ACTION_PAUSE);
 }
 
 bool leds_control_set_yellow_pattern(

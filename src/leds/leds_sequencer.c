@@ -7,6 +7,7 @@
 #include "nrf_assert.h"
 
 #include "internal/sequencer_executor.h"
+#include "internal/sequencer_math.h"
 #include "leds_sequencer.h"
 
 #define SEQUENCER_TIMER_INTERVAL_MS 10
@@ -39,8 +40,6 @@ static sequencer_t *sequencer_get(sequencer_led_id_t id);
 static void timer_callback(void *p_context);
 static void sequencer_process(sequencer_t *sequencer);
 static bool config_is_valid(sequencer_config_t const *config);
-static bool config_has_timed_step(sequencer_config_t const *config);
-static uint32_t smooth_duration_get(sequencer_step_t const *step, uint16_t current_value);
 
 bool sequencer_init(void) {
     ASSERT(!m_initialized);
@@ -81,9 +80,6 @@ bool sequencer_start(
         start_mode != SEQUENCER_START_CURRENT)
         return false;
 
-    if (config->repeat && !config_has_timed_step(config))
-        return false;
-
     CRITICAL_REGION_ENTER();
 
     sequencer->phase = SEQUENCER_PHASE_NORMAL;
@@ -101,7 +97,7 @@ bool sequencer_start(
 
         sequencer->smooth_step.from = current_value;
         sequencer->smooth_step.to = config->steps[0].to;
-        sequencer->smooth_step.duration_ms = smooth_duration_get(
+        sequencer->smooth_step.duration_ms = sequencer_math_smooth_duration_get(
             &config->steps[0],
             current_value);
 
@@ -123,23 +119,28 @@ bool sequencer_start(
     return true;
 }
 
-void sequencer_pause(sequencer_led_id_t id) {
+void sequencer_apply_action(
+    sequencer_led_id_t id,
+    sequencer_action_t action) {
     sequencer_t *sequencer = sequencer_get(id);
 
     if (sequencer == NULL) return;
 
     CRITICAL_REGION_ENTER();
-    executor_pause(&sequencer->executor);
-    CRITICAL_REGION_EXIT();
-}
 
-void sequencer_resume(sequencer_led_id_t id) {
-    sequencer_t *sequencer = sequencer_get(id);
+    switch (action) {
+        case SEQUENCER_ACTION_PAUSE:
+            executor_pause(&sequencer->executor);
+            break;
 
-    if (sequencer == NULL) return;
+        case SEQUENCER_ACTION_RESUME:
+            executor_resume(&sequencer->executor);
+            break;
 
-    CRITICAL_REGION_ENTER();
-    executor_resume(&sequencer->executor);
+        default:
+            break;
+    }
+
     CRITICAL_REGION_EXIT();
 }
 
@@ -216,28 +217,12 @@ static bool config_is_valid(sequencer_config_t const *config) {
     if (config->steps == NULL) return false;
     if (config->step_count == 0) return false;
 
+    if (config->repeat) {
+        for (uint16_t i = 0; i < config->step_count; i++)
+            if (config->steps[i].duration_ms > 0) return true;
+
+        return false;
+    }
+
     return true;
-}
-
-static bool config_has_timed_step(sequencer_config_t const *config) {
-    for (uint16_t i = 0; i < config->step_count; i++)
-        if (config->steps[i].duration_ms > 0) return true;
-
-    return false;
-}
-
-static uint32_t smooth_duration_get(
-    sequencer_step_t const *step,
-    uint16_t current_value) {
-    uint32_t original_distance = step->from > step->to ?
-        step->from - step->to : step->to - step->from;
-    uint32_t remaining_distance = current_value > step->to ?
-        current_value - step->to : step->to - current_value;
-
-    if (original_distance == 0)
-        return step->duration_ms;
-
-    return (uint32_t)(
-        (uint64_t)step->duration_ms * remaining_distance /
-        original_distance);
 }

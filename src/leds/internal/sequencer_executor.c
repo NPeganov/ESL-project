@@ -2,7 +2,7 @@
 
 #include "app_timer.h"
 
-#include "interpol.h"
+#include "sequencer_math.h"
 #include "sequencer_executor.h"
 
 static bool executor_advance(executor_t *executor);
@@ -60,7 +60,7 @@ void executor_process(
         }
 
         callback(
-            interpol_linear(
+            sequencer_math_interpolate(
                 step->from,
                 step->to,
                 elapsed,
