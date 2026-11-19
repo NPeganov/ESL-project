@@ -73,7 +73,6 @@ bool sequencer_start(
     sequencer_callback_t callback,
     void *context) {
     sequencer_t *sequencer = sequencer_get(id);
-    bool result;
 
     if (!m_initialized || sequencer == NULL || callback == NULL ||
         !config_is_valid(config))
@@ -93,7 +92,7 @@ bool sequencer_start(
     sequencer->context = context;
 
     if (start_mode == SEQUENCER_START_FROM_STEP) {
-        result = executor_start(
+        executor_start(
             &sequencer->executor,
             config,
             callback,
@@ -115,21 +114,18 @@ bool sequencer_start(
 
         sequencer->phase = SEQUENCER_PHASE_SMOOTH_START;
 
-        result = executor_start(
+        executor_start(
             &sequencer->executor,
             &smooth_config,
             callback,
             context);
     }
 
-    if (result)
-        sequencer_process(sequencer);
-    else
-        sequencer->phase = SEQUENCER_PHASE_IDLE;
+    sequencer_process(sequencer);
 
     CRITICAL_REGION_EXIT();
 
-    return result;
+    return true;
 }
 
 void sequencer_pause(sequencer_led_id_t id) {
@@ -211,14 +207,11 @@ static void sequencer_process(sequencer_t *sequencer) {
             return;
         }
 
-        if (!executor_start(
-                &sequencer->executor,
-                &config,
-                sequencer->callback,
-                sequencer->context)) {
-            sequencer->phase = SEQUENCER_PHASE_IDLE;
-            return;
-        }
+        executor_start(
+            &sequencer->executor,
+            &config,
+            sequencer->callback,
+            sequencer->context);
     }
 }
 
