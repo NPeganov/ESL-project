@@ -62,16 +62,7 @@ void executor_process(executor_t *executor) {
         uint32_t duration = APP_TIMER_TICKS(step->duration_ms);
         uint32_t elapsed = app_timer_cnt_diff_compute(now, executor->start_time);
 
-        if (duration == 0) {
-            executor->callback(step->to, executor->context);
-
-            if (!executor_advance(executor))
-                return;
-
-            continue;
-        }
-
-        if (elapsed >= duration) {
+        if (duration == 0 || elapsed >= duration) {
             executor->callback(step->to, executor->context);
             executor->start_time += duration;
 
