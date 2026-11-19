@@ -20,16 +20,16 @@ typedef enum {
 } hsv_picker_mode_t;
 
 typedef struct {
-    lc_hsv_parameter_t parameter;
-    lc_yellow_pattern_t pattern;
-    char const *name;
-} mode_info_t;
+    lc_hsv_parameter_t hsv_parameter;
+    lc_yellow_pattern_t yellow_pattern;
+    char const *mode_name;
+} mode_config_t;
 
-static mode_info_t const m_mode_info[] = {
-    {LC_VALUE,      LC_YELLOW_OFF,       "NO_INPUT"},
+static mode_config_t const m_mode_config[] = {
+    {LC_VALUE,      LC_YELLOW_OFF,        "NO_INPUT"},
     {LC_HUE,        LC_YELLOW_SLOW_BLINK, "HUE"},
     {LC_SATURATION, LC_YELLOW_FAST_BLINK, "SATURATION"},
-    {LC_VALUE,      LC_YELLOW_ON,        "BRIGHTNESS"}
+    {LC_VALUE,      LC_YELLOW_ON,         "BRIGHTNESS"}
 };
 
 static hsv_picker_mode_t m_mode;
@@ -90,13 +90,13 @@ static void button_press(void) {
     if (m_mode == MODE_NO_INPUT || m_changing)
         return;
 
-    if (!lc_start_hsv_change(m_mode_info[m_mode].parameter)) {
+    if (!lc_start_hsv_change(m_mode_config[m_mode].parameter)) {
         LOG_ERROR("Failed to start HSV parameter change");
         return;
     }
 
     m_changing = true;
-    log_parameter("start", m_mode_info[m_mode].parameter);
+    log_parameter("start", m_mode_config[m_mode].parameter);
 }
 
 static void button_release(void) {
@@ -105,19 +105,19 @@ static void button_release(void) {
 
     lc_stop_hsv_change();
     m_changing = false;
-    log_parameter("final", m_mode_info[m_mode].parameter);
+    log_parameter("final", m_mode_config[m_mode].parameter);
 }
 
 static void mode_advance(void) {
-    mode_info_t const *info;
+    mode_config_t const *info;
 
     m_mode = (m_mode + 1) % MODE_COUNT;
-    info = &m_mode_info[m_mode];
+    info = &m_mode_config[m_mode];
 
-    if (!lc_set_yellow_pattern(info->pattern))
+    if (!lc_set_yellow_pattern(info->yellow_pattern))
         APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
 
-    LOG_INFO("HSV mode: %s", info->name);
+    LOG_INFO("HSV mode: %s", info->mode_name);
 }
 
 static void log_parameter(char const *event, lc_hsv_parameter_t parameter) {
