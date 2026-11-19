@@ -63,9 +63,6 @@ bool hsv_start(lc_hsv_parameter_t parameter) {
         case LC_VALUE:
             start_value = value;
             break;
-
-        default:
-            return false;
     }
 
     active_parameter = parameter;
