@@ -15,7 +15,8 @@ typedef enum {
     MODE_NO_INPUT,
     MODE_HUE,
     MODE_SATURATION,
-    MODE_BRIGHTNESS
+    MODE_BRIGHTNESS,
+    MODE_COUNT
 } hsv_picker_mode_t;
 
 typedef struct {
@@ -39,7 +40,6 @@ static void button_event_handler(btn_event_t event);
 static void button_press(void);
 static void button_release(void);
 static void mode_advance(void);
-static void mode_set(hsv_picker_mode_t mode);
 static void log_parameter_value(char const *event, lc_hsv_parameter_t parameter);
 static uint16_t initial_hue_get(void);
 
@@ -112,33 +112,13 @@ static void button_release(void) {
 }
 
 static void mode_advance(void) {
-    switch (m_mode) {
-        case MODE_NO_INPUT:
-            mode_set(MODE_HUE);
-            break;
+    mode_info_t const *info;
 
-        case MODE_HUE:
-            mode_set(MODE_SATURATION);
-            break;
-
-        case MODE_SATURATION:
-            mode_set(MODE_BRIGHTNESS);
-            break;
-
-        case MODE_BRIGHTNESS:
-        default:
-            mode_set(MODE_NO_INPUT);
-            break;
-    }
-}
-
-static void mode_set(hsv_picker_mode_t mode) {
-    mode_info_t const *info = &m_mode_info[mode];
+    m_mode = (m_mode + 1) % MODE_COUNT;
+    info = &m_mode_info[m_mode];
 
     if (!lc_set_yellow_pattern(info->pattern))
         APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
-
-    m_mode = mode;
 
     LOG_INFO("HSV mode: %s", info->name);
 }
