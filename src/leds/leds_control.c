@@ -6,13 +6,12 @@
 
 #include "leds_control.h"
 #include "leds_pwm.h"
+#include "leds/internal/leds_control_yellow.h"
 
-// HSV change rates and yellow indicator intervals.
+// HSV change rates.
 #define CONTROL_TIMER_INTERVAL_MS 10
 #define HUE_CYCLE_DURATION_MS 10000
 #define HSV_VALUE_HALF_CYCLE_MS 5000
-#define YELLOW_SLOW_BLINK_MS 1000
-#define YELLOW_FAST_BLINK_MS 150
 
 APP_TIMER_DEF(m_control_timer);
 
@@ -25,18 +24,15 @@ static uint16_t m_hsv_change_start_value;
 static uint32_t m_hsv_change_elapsed_ticks;
 static uint32_t m_hsv_change_last_tick;
 
-static leds_control_yellow_pattern_t m_yellow_pattern;
-static bool m_yellow_state;
-static uint32_t m_yellow_toggle_tick;
-
 static void control_timer_handler(void *p_context);
 static void hsv_change_process(uint32_t now);
-static void yellow_process(uint32_t now);
 
 bool leds_control_init(void) {
     if (m_initialized) return false;
 
     if (!leds_pwm_init()) return false;
+
+    leds_control_yellow_init();
 
     if (app_timer_create(
             &m_control_timer,
@@ -46,9 +42,6 @@ bool leds_control_init(void) {
 
     m_hsv_change_active = false;
     m_hsv_change_paused = false;
-    m_yellow_pattern = LEDS_CONTROL_YELLOW_OFF;
-    m_yellow_state = false;
-    m_yellow_toggle_tick = app_timer_cnt_get();
     m_initialized = true;
 
     if (app_timer_start(
@@ -144,32 +137,9 @@ void leds_control_stop_hsv_change(void) {
 
 bool leds_control_set_yellow_pattern(
     leds_control_yellow_pattern_t pattern) {
-    uint8_t brightness;
-
     if (!m_initialized) return false;
 
-    switch (pattern) {
-        case LEDS_CONTROL_YELLOW_OFF:
-            m_yellow_state = false;
-            brightness = 0;
-            break;
-
-        case LEDS_CONTROL_YELLOW_ON:
-        case LEDS_CONTROL_YELLOW_SLOW_BLINK:
-        case LEDS_CONTROL_YELLOW_FAST_BLINK:
-            m_yellow_state = true;
-            brightness = 100;
-            break;
-
-        default:
-            return false;
-    }
-
-    m_yellow_pattern = pattern;
-    m_yellow_toggle_tick = app_timer_cnt_get();
-    leds_pwm_set_yellow_brightness(brightness);
-
-    return true;
+    return leds_control_yellow_set_pattern(pattern);
 }
 
 static void control_timer_handler(void *p_context) {
@@ -178,7 +148,7 @@ static void control_timer_handler(void *p_context) {
     (void)p_context;
 
     hsv_change_process(now);
-    yellow_process(now);
+    leds_control_yellow_process(now);
 }
 
 static void hsv_change_process(uint32_t now) {
@@ -234,32 +204,5 @@ static void hsv_change_process(uint32_t now) {
             m_hsv_change_active = false;
             m_hsv_change_paused = false;
             break;
-    }
-}
-
-static void yellow_process(uint32_t now) {
-    uint32_t interval_ms;
-    uint32_t interval_ticks;
-
-    switch (m_yellow_pattern) {
-        case LEDS_CONTROL_YELLOW_SLOW_BLINK:
-            interval_ms = YELLOW_SLOW_BLINK_MS;
-            break;
-
-        case LEDS_CONTROL_YELLOW_FAST_BLINK:
-            interval_ms = YELLOW_FAST_BLINK_MS;
-            break;
-
-        default:
-            return;
-    }
-
-    interval_ticks = APP_TIMER_TICKS(interval_ms);
-
-    while (app_timer_cnt_diff_compute(now, m_yellow_toggle_tick) >= interval_ticks) {
-        m_yellow_toggle_tick += interval_ticks;
-        m_yellow_state = !m_yellow_state;
-
-        leds_pwm_set_yellow_brightness(m_yellow_state ? 100 : 0);
     }
 }
