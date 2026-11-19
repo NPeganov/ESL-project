@@ -54,6 +54,8 @@ bool leds_control_yellow_set_pattern(
 void leds_control_yellow_process(uint32_t now) {
     uint32_t interval_ms;
     uint32_t interval_ticks;
+    uint32_t elapsed_ticks;
+    uint32_t toggle_count;
 
     switch (m_pattern) {
         case LEDS_CONTROL_YELLOW_SLOW_BLINK:
@@ -69,11 +71,15 @@ void leds_control_yellow_process(uint32_t now) {
     }
 
     interval_ticks = APP_TIMER_TICKS(interval_ms);
+    elapsed_ticks = app_timer_cnt_diff_compute(now, m_toggle_tick);
+    toggle_count = elapsed_ticks / interval_ticks;
 
-    while (app_timer_cnt_diff_compute(now, m_toggle_tick) >= interval_ticks) {
-        m_toggle_tick += interval_ticks;
-        m_state = !m_state;
+    if (toggle_count == 0) return;
 
-        leds_pwm_set_yellow_brightness(m_state ? 100 : 0);
-    }
+    m_toggle_tick += toggle_count * interval_ticks;
+
+    if (toggle_count % 2 == 0) return;
+
+    m_state = !m_state;
+    leds_pwm_set_yellow_brightness(m_state ? 100 : 0);
 }
