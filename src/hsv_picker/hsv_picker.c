@@ -88,27 +88,27 @@ static void button_event_handler(btn_event_t event) {
 }
 
 static void button_press(void) {
-    if (m_mode == MODE_NO_INPUT || m_parameter_changing)
+    if (m_mode == MODE_NO_INPUT || m_changing)
         return;
 
     m_parameter = m_mode_info[m_mode].parameter;
 
-    if (!lc_start_hsv_change(m_active_parameter)) {
+    if (!lc_start_hsv_change(m_parameter)) {
         LOG_ERROR("Failed to start HSV parameter change");
         return;
     }
 
-    m_parameter_changing = true;
-    log_parameter("start", m_active_parameter);
+    m_changing = true;
+    log_parameter("start", m_parameter);
 }
 
 static void button_release(void) {
-    if (!m_parameter_changing)
+    if (!m_changing)
         return;
 
     lc_stop_hsv_change();
-    m_parameter_changing = false;
-    log_parameter_value("final", m_active_parameter);
+    m_changing = false;
+    log_parameter("final", m_parameter);
 }
 
 static void mode_advance(void) {
@@ -123,7 +123,7 @@ static void mode_advance(void) {
     LOG_INFO("HSV mode: %s", info->name);
 }
 
-static void log_parameter_value(char const *event, lc_hsv_parameter_t parameter) {
+static void log_parameter(char const *event, lc_hsv_parameter_t parameter) {
     uint16_t hue;
     uint8_t saturation;
     uint8_t value;
