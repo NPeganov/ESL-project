@@ -28,7 +28,6 @@ bool leds_pwm_init(void) {
     ASSERT(!m_initialized);
 
     pwm_config_t config;
-    config.frequency_hz = 1000;
     config.channels[0].pin = LED_1;
     config.channels[0].polarity = PWM_POLARITY_ACTIVE_LOW;
     config.channels[1].pin = LED_2;
