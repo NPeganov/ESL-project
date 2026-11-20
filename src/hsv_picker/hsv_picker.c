@@ -19,19 +19,6 @@ typedef enum {
     MODE_COUNT
 } hsv_picker_mode_t;
 
-typedef struct {
-    lc_hsv_parameter_t hsv_parameter;
-    lc_yellow_pattern_t yellow_pattern;
-    char const *mode_name;
-} mode_config_t;
-
-static mode_config_t const m_mode_config[] = {
-    {LC_VALUE,      LC_YELLOW_OFF,        "NO_INPUT"},
-    {LC_HUE,        LC_YELLOW_SLOW_BLINK, "HUE"},
-    {LC_SATURATION, LC_YELLOW_FAST_BLINK, "SATURATION"},
-    {LC_VALUE,      LC_YELLOW_ON,         "BRIGHTNESS"}
-};
-
 static hsv_picker_mode_t m_mode;
 static bool m_changing;
 
@@ -90,31 +77,93 @@ static void button_press(void) {
     if (m_mode == MODE_NO_INPUT || m_changing)
         return;
 
-    if (!lc_start_hsv_change(m_mode_config[m_mode].hsv_parameter)) {
+    lc_hsv_parameter_t parameter;
+
+    switch (m_mode) {
+        case MODE_HUE:
+            parameter = LC_HUE;
+            break;
+
+        case MODE_SATURATION:
+            parameter = LC_SATURATION;
+            break;
+
+        case MODE_BRIGHTNESS:
+            parameter = LC_VALUE;
+            break;
+
+        case MODE_NO_INPUT:
+        default:
+            return;
+    }
+
+    if (!lc_start_hsv_change(parameter)) {
         LOG_ERROR("Failed to start HSV parameter change");
         return;
     }
 
     m_changing = true;
-    log_parameter("start", m_mode_config[m_mode].hsv_parameter);
+    log_parameter("start", parameter);
 }
 
 static void button_release(void) {
     if (!m_changing)
         return;
 
+    lc_hsv_parameter_t parameter;
+
+    switch (m_mode) {
+        case MODE_HUE:
+            parameter = LC_HUE;
+            break;
+
+        case MODE_SATURATION:
+            parameter = LC_SATURATION;
+            break;
+
+        case MODE_BRIGHTNESS:
+            parameter = LC_VALUE;
+            break;
+
+        case MODE_NO_INPUT:
+        default:
+            return;
+    }
+
     lc_stop_hsv_change();
     m_changing = false;
-    log_parameter("final", m_mode_config[m_mode].hsv_parameter);
+    log_parameter("final", parameter);
 }
 
 static void mode_advance(void) {
     m_mode = (m_mode + 1) % MODE_COUNT;
 
-    if (!lc_set_yellow_pattern(m_mode_config[m_mode].yellow_pattern))
-        APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
+    switch (m_mode) {
+        case MODE_HUE:
+            if (!lc_set_yellow_pattern(LC_YELLOW_SLOW_BLINK))
+                APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
+            LOG_INFO("HSV mode: HUE");
+            break;
 
-    LOG_INFO("HSV mode: %s", m_mode_config[m_mode].mode_name);
+        case MODE_SATURATION:
+            if (!lc_set_yellow_pattern(LC_YELLOW_FAST_BLINK))
+                APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
+            LOG_INFO("HSV mode: SATURATION");
+            break;
+
+        case MODE_BRIGHTNESS:
+            if (!lc_set_yellow_pattern(LC_YELLOW_ON))
+                APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
+            LOG_INFO("HSV mode: BRIGHTNESS");
+            break;
+
+        case MODE_NO_INPUT:
+        default:
+            if (!lc_set_yellow_pattern(LC_YELLOW_OFF))
+                APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
+            LOG_INFO("HSV mode: NO_INPUT");
+            break;
+    }
 }
 
 static void log_parameter(char const *event, lc_hsv_parameter_t parameter) {
