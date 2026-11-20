@@ -4,14 +4,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// HSV parameter controlled while the button is held.
+// HSV component whose value changes while the button is held.
 typedef enum {
     LC_HUE,
     LC_SATURATION,
     LC_VALUE
 } lc_hsv_parameter_t;
 
-// Yellow LED indication pattern.
+// Yellow LED indication patterns used to show the current picker mode.
 typedef enum {
     LC_YELLOW_OFF,
     LC_YELLOW_SLOW_BLINK,
@@ -19,7 +19,8 @@ typedef enum {
     LC_YELLOW_ON
 } lc_yellow_pattern_t;
 
-// Initializes PWM, both control modules and the periodic control timer.
+// Initializes the PWM driver, both control modules and the periodic timer.
+// Must be called before starting HSV changes or setting an indication pattern.
 // Returns false if initialization fails or has already been performed.
 bool lc_init(void);
 
@@ -31,15 +32,15 @@ void lc_set_hsv(
 
 // Gets the current RGB LED color. All output pointers must be valid.
 void lc_get_hsv(
-    uint16_t *hue,          // Receives Hue in degrees.
+    uint16_t *hue,          // Receives hue in degrees.
     uint8_t *saturation,    // Receives saturation, 0..100.
     uint8_t *value);        // Receives value, 0..100.
 
-// Starts changing the selected HSV parameter, or resumes it if paused.
+// Starts changing the selected component, or resumes it if previously paused.
 // Returns false if the module is not initialized or the parameter is invalid.
 bool lc_start_hsv_change(lc_hsv_parameter_t parameter);
 
-// Pauses the current HSV change. Starting the same parameter resumes its phase.
+// Pauses the active HSV change. Starting the same component resumes its progress.
 void lc_stop_hsv_change(void);
 
 // Sets the yellow LED indication pattern.

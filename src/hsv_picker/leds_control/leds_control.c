@@ -9,6 +9,7 @@
 #include "leds_control_hsv.h"
 #include "leds_control_yellow.h"
 
+// Both control modules are updated by this shared periodic timer.
 #define CONTROL_TIMER_INTERVAL_MS 10
 
 APP_TIMER_DEF(control_timer);
@@ -17,7 +18,7 @@ static bool initialized;
 
 static void timer_handler(void *p_context);
 
-// Initializes the LED driver, control modules and shared timer.
+// Initializes the LED driver, both control modules and their shared timer.
 bool lc_init(void) {
     if (initialized) return false;
 
@@ -55,7 +56,7 @@ void lc_set_hsv(
     leds_pwm_set_hsv(hue, saturation, value);
 }
 
-// Reads the current RGB LED color from the PWM driver.
+// Reads the current RGB LED color from the PWM driver's cached HSV values.
 void lc_get_hsv(
     uint16_t *hue,
     uint8_t *saturation,
@@ -63,26 +64,26 @@ void lc_get_hsv(
     leds_pwm_get_hsv(hue, saturation, value);
 }
 
-// Starts or resumes the selected HSV parameter change.
+// Starts changing the selected HSV parameter, or resumes it if paused.
 bool lc_start_hsv_change(lc_hsv_parameter_t parameter) {
     if (!initialized) return false;
 
     return hsv_start(parameter);
 }
 
-// Pauses the active HSV parameter change.
+// Pauses the active HSV parameter change without resetting its progress.
 void lc_stop_hsv_change(void) {
     hsv_stop();
 }
 
-// Changes the yellow LED indication pattern.
+// Selects the yellow LED indication pattern.
 bool lc_set_yellow_pattern(lc_yellow_pattern_t pattern) {
     if (!initialized) return false;
 
     return yellow_set_pattern(pattern);
 }
 
-// Advances both control modules using the same timer timestamp.
+// Updates both control modules using one timestamp for a consistent time base.
 static void timer_handler(void *p_context) {
     uint32_t now = app_timer_cnt_get();
 

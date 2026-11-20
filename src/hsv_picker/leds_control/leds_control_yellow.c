@@ -19,33 +19,29 @@
 #define YELLOW_FAST_HOLD_OFF_MS 50
 
 typedef struct {
-    uint32_t fade_in_ticks;
-    uint32_t hold_on_ticks;
-    uint32_t fade_out_ticks;
-    uint32_t hold_off_ticks;
-    uint32_t cycle_ticks;
+    uint32_t fade_in_ticks;    // Duration of the fade from off to full brightness.
+    uint32_t hold_on_ticks;    // Duration at full brightness.
+    uint32_t fade_out_ticks;   // Duration of the fade from full brightness to off.
+    uint32_t hold_off_ticks;   // Duration at zero brightness.
+    uint32_t cycle_ticks;      // Total duration of all four phases.
 } blink_timing_t;
 
 static lc_yellow_pattern_t pattern;       // Selected indication pattern.
 static blink_timing_t timing;             // Tick durations for the selected blink pattern.
 static uint32_t pattern_start_tick;       // Timestamp when the current pattern started.
 
+// Sets the initial yellow LED pattern to off.
 void yellow_init(void) {
     pattern = LC_YELLOW_OFF;
 }
 
-// Applies a yellow LED pattern and resets its timing when blinking starts.
+// Applies a yellow LED pattern; starting a blink pattern resets its cycle to fade-in.
 bool yellow_set_pattern(lc_yellow_pattern_t new_pattern) {
     uint8_t brightness;
 
     switch (new_pattern) {
-        case LC_YELLOW_OFF:
-            brightness = 0;
-            break;
-
-        case LC_YELLOW_ON:
-            brightness = 100;
-            break;
+        case LC_YELLOW_OFF: brightness = 0; break;
+        case LC_YELLOW_ON: brightness = 100; break;
 
         case LC_YELLOW_SLOW_BLINK:
             timing.fade_in_ticks = APP_TIMER_TICKS(YELLOW_SLOW_FADE_IN_MS);
@@ -68,6 +64,7 @@ bool yellow_set_pattern(lc_yellow_pattern_t new_pattern) {
 
     pattern = new_pattern;
 
+    // Cache the cycle length and its start time when a blinking pattern is selected.
     if (new_pattern == LC_YELLOW_SLOW_BLINK ||
         new_pattern == LC_YELLOW_FAST_BLINK) {
         timing.cycle_ticks = timing.fade_in_ticks +
@@ -82,27 +79,31 @@ bool yellow_set_pattern(lc_yellow_pattern_t new_pattern) {
     return true;
 }
 
-// Calculates brightness for the current position within a blink cycle.
+// Calculates brightness for the current position within one blink cycle.
 static uint8_t get_blink_brightness(uint32_t phase_ticks) {
     uint32_t fade_in_end = timing.fade_in_ticks;
     uint32_t hold_on_end = fade_in_end + timing.hold_on_ticks;
     uint32_t fade_out_end = hold_on_end + timing.fade_out_ticks;
 
+    // Fade in linearly from 0 to 100 percent.
     if (phase_ticks < fade_in_end)
         return (uint8_t)(phase_ticks * 100 / timing.fade_in_ticks);
 
+    // Keep full brightness for the hold-on phase.
     if (phase_ticks < hold_on_end)
         return 100;
 
+    // Fade out linearly from 100 to 0 percent.
     if (phase_ticks < fade_out_end) {
         phase_ticks -= hold_on_end;
         return (uint8_t)(100 - phase_ticks * 100 / timing.fade_out_ticks);
     }
 
+    // The remaining part of the cycle is the hold-off phase.
     return 0;
 }
 
-// Updates the yellow LED brightness through fade and hold phases.
+// Updates the yellow LED brightness according to the selected blink pattern.
 void yellow_process(uint32_t now) {
     uint32_t phase_ticks;
     uint8_t brightness;
@@ -111,10 +112,12 @@ void yellow_process(uint32_t now) {
         pattern != LC_YELLOW_FAST_BLINK)
         return;
 
+    // Find the current position in the cycle, independent of callback delays.
     phase_ticks = app_timer_cnt_diff_compute(now, pattern_start_tick) %
                   timing.cycle_ticks;
     brightness = get_blink_brightness(phase_ticks);
 
+    // Avoid writing the PWM channel when the brightness is unchanged.
     if (brightness != leds_pwm_get_yellow_brightness())
         leds_pwm_set_yellow_brightness(brightness);
 }
