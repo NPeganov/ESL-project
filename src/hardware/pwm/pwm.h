@@ -29,16 +29,13 @@ typedef struct {
 
 // Configuration shared by all channels of the PWM peripheral.
 typedef struct {
-    // Requested PWM frequency in hertz. The fastest suitable clock is selected.
-    uint32_t frequency_hz;
-
     // Pin and polarity settings, indexed by pwm_channel_t.
     pwm_channel_config_t channels[PWM_CHANNEL_COUNT];
 } pwm_config_t;
 
 // Initialize the PWM peripheral. All channels start with zero duty.
 // Call once before using pwm_set().
-// Return false if the frequency is unsupported or the nrfx driver cannot be started.
+// Return false if the nrfx driver cannot be started.
 // The configuration pointer, pins, and polarity values must be valid.
 bool pwm_init(pwm_config_t const *config);
 
