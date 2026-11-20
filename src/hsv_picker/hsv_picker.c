@@ -75,7 +75,7 @@ static void button_press(void) {
     }
 
     m_changing = true;
-    log_parameter("start", parameter);
+    log_parameter("started", parameter);
 }
 
 static void button_release(void) {
@@ -86,7 +86,7 @@ static void button_release(void) {
 
     lc_stop_hsv_change();
     m_changing = false;
-    log_parameter("final", parameter);
+    log_parameter("finished", parameter);
 }
 
 static void mode_advance(void) {
@@ -141,15 +141,15 @@ static void log_parameter(char const *event, lc_hsv_parameter_t parameter) {
 
     switch (parameter) {
         case LC_HUE:
-            LOG_INFO("HSV %s: H=%u", event, (unsigned int)hue);
+            LOG_INFO("HUE change %s at value %u", event, (unsigned int)hue);
             break;
 
         case LC_SATURATION:
-            LOG_INFO("HSV %s: S=%u", event, (unsigned int)saturation);
+            LOG_INFO("SATURATION change %s at value %u", event, (unsigned int)saturation);
             break;
 
         case LC_VALUE:
-            LOG_INFO("HSV %s: V=%u", event, (unsigned int)value);
+            LOG_INFO("BRIGHTNESS change %s at value %u", event, (unsigned int)value);
             break;
     }
 }
