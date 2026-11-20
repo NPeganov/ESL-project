@@ -7,8 +7,9 @@
 #include "leds_control_hsv.h"
 
 // HSV change rates.
-#define HUE_CYCLE_DURATION_MS 10000
-#define HSV_VALUE_HALF_CYCLE_MS 5000
+#define HUE_CYCLE_DURATION_MS       10000
+#define SATURATION_HALF_CYCLE_MS     5000
+#define VALUE_HALF_CYCLE_MS          5000
 
 typedef enum {
     CHANGE_IDLE,
@@ -110,7 +111,12 @@ void hsv_process(uint32_t now) {
 
         case LC_SATURATION:
         case LC_VALUE: {
-            uint32_t half_cycle_ticks = APP_TIMER_TICKS(HSV_VALUE_HALF_CYCLE_MS);
+            uint32_t half_cycle_ms = SATURATION_HALF_CYCLE_MS;
+
+            if (active_parameter == LC_VALUE)
+                half_cycle_ms = VALUE_HALF_CYCLE_MS;
+
+            uint32_t half_cycle_ticks = APP_TIMER_TICKS(half_cycle_ms);
             uint32_t steps = (uint32_t)(
                 (uint64_t)elapsed_ticks * 100 /
                 half_cycle_ticks);
