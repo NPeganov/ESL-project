@@ -18,14 +18,23 @@
 #define YELLOW_FAST_FADE_OUT_MS 150
 #define YELLOW_FAST_HOLD_OFF_MS 50
 
-static lc_yellow_pattern_t pattern;    // Selected indication pattern.
-static uint32_t pattern_start_tick;    // Timestamp when the current pattern started.
+typedef struct {
+    uint32_t fade_in_ticks;
+    uint32_t hold_on_ticks;
+    uint32_t fade_out_ticks;
+    uint32_t hold_off_ticks;
+    uint32_t cycle_ticks;
+} blink_timing_t;
+
+static lc_yellow_pattern_t pattern;       // Selected indication pattern.
+static blink_timing_t timing;             // Tick durations for the selected blink pattern.
+static uint32_t pattern_start_tick;       // Timestamp when the current pattern started.
 
 void yellow_init(void) {
     pattern = LC_YELLOW_OFF;
 }
 
-// Sets the initial output brightness and restarts the pattern timing.
+// Applies a yellow LED pattern and resets its timing when blinking starts.
 bool yellow_set_pattern(lc_yellow_pattern_t new_pattern) {
     uint8_t brightness;
 
@@ -39,7 +48,18 @@ bool yellow_set_pattern(lc_yellow_pattern_t new_pattern) {
             break;
 
         case LC_YELLOW_SLOW_BLINK:
+            timing.fade_in_ticks = APP_TIMER_TICKS(YELLOW_SLOW_FADE_IN_MS);
+            timing.hold_on_ticks = APP_TIMER_TICKS(YELLOW_SLOW_HOLD_ON_MS);
+            timing.fade_out_ticks = APP_TIMER_TICKS(YELLOW_SLOW_FADE_OUT_MS);
+            timing.hold_off_ticks = APP_TIMER_TICKS(YELLOW_SLOW_HOLD_OFF_MS);
+            brightness = 0;
+            break;
+
         case LC_YELLOW_FAST_BLINK:
+            timing.fade_in_ticks = APP_TIMER_TICKS(YELLOW_FAST_FADE_IN_MS);
+            timing.hold_on_ticks = APP_TIMER_TICKS(YELLOW_FAST_HOLD_ON_MS);
+            timing.fade_out_ticks = APP_TIMER_TICKS(YELLOW_FAST_FADE_OUT_MS);
+            timing.hold_off_ticks = APP_TIMER_TICKS(YELLOW_FAST_HOLD_OFF_MS);
             brightness = 0;
             break;
 
@@ -47,7 +67,16 @@ bool yellow_set_pattern(lc_yellow_pattern_t new_pattern) {
     }
 
     pattern = new_pattern;
-    pattern_start_tick = app_timer_cnt_get();
+
+    if (new_pattern == LC_YELLOW_SLOW_BLINK ||
+        new_pattern == LC_YELLOW_FAST_BLINK) {
+        timing.cycle_ticks = timing.fade_in_ticks +
+                             timing.hold_on_ticks +
+                             timing.fade_out_ticks +
+                             timing.hold_off_ticks;
+        pattern_start_tick = app_timer_cnt_get();
+    }
+
     leds_pwm_set_yellow_brightness(brightness);
 
     return true;
@@ -55,43 +84,28 @@ bool yellow_set_pattern(lc_yellow_pattern_t new_pattern) {
 
 // Updates the yellow LED brightness through fade and hold phases.
 void yellow_process(uint32_t now) {
-    uint32_t fade_in_ticks;
-    uint32_t hold_on_ticks;
-    uint32_t fade_out_ticks;
-    uint32_t hold_off_ticks;
-    uint32_t cycle_ticks;
     uint32_t phase_ticks;
     uint8_t brightness;
 
-    switch (pattern) {
-        case LC_YELLOW_SLOW_BLINK:
-            fade_in_ticks = APP_TIMER_TICKS(YELLOW_SLOW_FADE_IN_MS);
-            hold_on_ticks = APP_TIMER_TICKS(YELLOW_SLOW_HOLD_ON_MS);
-            fade_out_ticks = APP_TIMER_TICKS(YELLOW_SLOW_FADE_OUT_MS);
-            hold_off_ticks = APP_TIMER_TICKS(YELLOW_SLOW_HOLD_OFF_MS);
-            break;
+    if (pattern != LC_YELLOW_SLOW_BLINK &&
+        pattern != LC_YELLOW_FAST_BLINK)
+        return;
 
-        case LC_YELLOW_FAST_BLINK:
-            fade_in_ticks = APP_TIMER_TICKS(YELLOW_FAST_FADE_IN_MS);
-            hold_on_ticks = APP_TIMER_TICKS(YELLOW_FAST_HOLD_ON_MS);
-            fade_out_ticks = APP_TIMER_TICKS(YELLOW_FAST_FADE_OUT_MS);
-            hold_off_ticks = APP_TIMER_TICKS(YELLOW_FAST_HOLD_OFF_MS);
-            break;
+    phase_ticks = app_timer_cnt_diff_compute(now, pattern_start_tick) %
+                  timing.cycle_ticks;
 
-        default: return;
-    }
-
-    cycle_ticks = fade_in_ticks + hold_on_ticks + fade_out_ticks + hold_off_ticks;
-    phase_ticks = app_timer_cnt_diff_compute(now, pattern_start_tick) % cycle_ticks;
-
-    if (phase_ticks < fade_in_ticks)
-        brightness = (uint8_t)(phase_ticks * 100 / fade_in_ticks);
-    else if ((phase_ticks -= fade_in_ticks) < hold_on_ticks)
+    if (phase_ticks < timing.fade_in_ticks) {
+        brightness = (uint8_t)(phase_ticks * 100 / timing.fade_in_ticks);
+    } else if (phase_ticks < timing.fade_in_ticks + timing.hold_on_ticks) {
         brightness = 100;
-    else if ((phase_ticks -= hold_on_ticks) < fade_out_ticks)
-        brightness = (uint8_t)(100 - phase_ticks * 100 / fade_out_ticks);
-    else
+    } else if (phase_ticks < timing.fade_in_ticks +
+                             timing.hold_on_ticks +
+                             timing.fade_out_ticks) {
+        phase_ticks -= timing.fade_in_ticks + timing.hold_on_ticks;
+        brightness = (uint8_t)(100 - phase_ticks * 100 / timing.fade_out_ticks);
+    } else {
         brightness = 0;
+    }
 
     if (brightness != leds_pwm_get_yellow_brightness())
         leds_pwm_set_yellow_brightness(brightness);
