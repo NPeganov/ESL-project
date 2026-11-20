@@ -171,8 +171,7 @@ static void mode_advance(void) {
         case MODE_BRIGHTNESS:
         default:
             m_mode = MODE_NO_INPUT;
-            if (!lc_set_yellow_pattern(LC_YELLOW_OFF))
-                APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
+            set_yellow_pattern(LC_YELLOW_OFF);
             LOG_INFO("HSV-picker mode changed to NO_INPUT");
             break;
     }
