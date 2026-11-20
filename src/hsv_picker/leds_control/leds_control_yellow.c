@@ -82,6 +82,26 @@ bool yellow_set_pattern(lc_yellow_pattern_t new_pattern) {
     return true;
 }
 
+// Calculates brightness for the current position within a blink cycle.
+static uint8_t get_blink_brightness(uint32_t phase_ticks) {
+    uint32_t fade_in_end = timing.fade_in_ticks;
+    uint32_t hold_on_end = fade_in_end + timing.hold_on_ticks;
+    uint32_t fade_out_end = hold_on_end + timing.fade_out_ticks;
+
+    if (phase_ticks < fade_in_end)
+        return (uint8_t)(phase_ticks * 100 / timing.fade_in_ticks);
+
+    if (phase_ticks < hold_on_end)
+        return 100;
+
+    if (phase_ticks < fade_out_end) {
+        phase_ticks -= hold_on_end;
+        return (uint8_t)(100 - phase_ticks * 100 / timing.fade_out_ticks);
+    }
+
+    return 0;
+}
+
 // Updates the yellow LED brightness through fade and hold phases.
 void yellow_process(uint32_t now) {
     uint32_t phase_ticks;
@@ -93,19 +113,7 @@ void yellow_process(uint32_t now) {
 
     phase_ticks = app_timer_cnt_diff_compute(now, pattern_start_tick) %
                   timing.cycle_ticks;
-
-    if (phase_ticks < timing.fade_in_ticks) {
-        brightness = (uint8_t)(phase_ticks * 100 / timing.fade_in_ticks);
-    } else if (phase_ticks < timing.fade_in_ticks + timing.hold_on_ticks) {
-        brightness = 100;
-    } else if (phase_ticks < timing.fade_in_ticks +
-                             timing.hold_on_ticks +
-                             timing.fade_out_ticks) {
-        phase_ticks -= timing.fade_in_ticks + timing.hold_on_ticks;
-        brightness = (uint8_t)(100 - phase_ticks * 100 / timing.fade_out_ticks);
-    } else {
-        brightness = 0;
-    }
+    brightness = get_blink_brightness(phase_ticks);
 
     if (brightness != leds_pwm_get_yellow_brightness())
         leds_pwm_set_yellow_brightness(brightness);
