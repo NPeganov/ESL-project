@@ -87,8 +87,7 @@ static void button_event_handler(btn_event_t event) {
 static void button_press(void) {
     lc_hsv_parameter_t parameter;
 
-    if (m_changing || !get_mode_parameter(&parameter))
-        return;
+    if (m_changing || !get_mode_parameter(&parameter)) return;
 
     if (!lc_start_hsv_change(parameter)) {
         LOG_ERROR("Failed to start HSV parameter change");
