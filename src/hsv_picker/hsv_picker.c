@@ -95,21 +95,21 @@ static void mode_advance(void) {
             m_mode = MODE_HUE;
             if (!lc_set_yellow_pattern(LC_YELLOW_SLOW_BLINK))
                 APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
-            LOG_INFO("HSV mode: HUE");
+            LOG_INFO("HSV-picker mode changed to HUE");
             break;
 
         case MODE_HUE:
             m_mode = MODE_SATURATION;
             if (!lc_set_yellow_pattern(LC_YELLOW_FAST_BLINK))
                 APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
-            LOG_INFO("HSV mode: SATURATION");
+            LOG_INFO("HSV-picker mode changed to SATURATION");
             break;
 
         case MODE_SATURATION:
             m_mode = MODE_BRIGHTNESS;
             if (!lc_set_yellow_pattern(LC_YELLOW_ON))
                 APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
-            LOG_INFO("HSV mode: BRIGHTNESS");
+            LOG_INFO("HSV-picker mode changed to BRIGHTNESS");
             break;
 
         case MODE_BRIGHTNESS:
@@ -117,7 +117,7 @@ static void mode_advance(void) {
             m_mode = MODE_NO_INPUT;
             if (!lc_set_yellow_pattern(LC_YELLOW_OFF))
                 APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
-            LOG_INFO("HSV mode: NO_INPUT");
+            LOG_INFO("HSV-picker mode changed to NO_INPUT");
             break;
     }
 }
