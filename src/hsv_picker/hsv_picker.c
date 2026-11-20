@@ -45,11 +45,9 @@ static uint16_t get_initial_hue(void);
 // Initialize dependencies and set the device-specific initial color.
 // Button processing is enabled separately by hsv_picker_start().
 bool hsv_picker_init(void) {
-    if (!timer_service_init())
-        return false;
+    if (!timer_service_init()) return false;
 
-    if (!lc_init())
-        return false;
+    if (!lc_init()) return false;
 
     // Button holds do not change HSV until an input mode is selected.
     m_mode = MODE_NO_INPUT;
@@ -102,8 +100,7 @@ static void button_press(void) {
 static void button_release(void) {
     lc_hsv_parameter_t parameter;
 
-    if (!m_changing || !get_mode_parameter(&parameter))
-        return;
+    if (!m_changing || !get_mode_parameter(&parameter)) return;
 
     lc_stop_hsv_change();
     m_changing = false;
