@@ -15,8 +15,7 @@ typedef enum {
     MODE_NO_INPUT,
     MODE_HUE,
     MODE_SATURATION,
-    MODE_BRIGHTNESS,
-    MODE_COUNT
+    MODE_BRIGHTNESS
 } hsv_picker_mode_t;
 
 static hsv_picker_mode_t m_mode;
@@ -101,7 +100,24 @@ static void button_release(void) {
 }
 
 static void mode_advance(void) {
-    m_mode = (m_mode + 1) % MODE_COUNT;
+    switch (m_mode) {
+        case MODE_NO_INPUT:
+            m_mode = MODE_HUE;
+            break;
+
+        case MODE_HUE:
+            m_mode = MODE_SATURATION;
+            break;
+
+        case MODE_SATURATION:
+            m_mode = MODE_BRIGHTNESS;
+            break;
+
+        case MODE_BRIGHTNESS:
+        default:
+            m_mode = MODE_NO_INPUT;
+            break;
+    }
 
     switch (m_mode) {
         case MODE_HUE:
