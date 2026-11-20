@@ -8,19 +8,14 @@
 #include "log/log.h"
 #include "timer_service/timer_service.h"
 
-// HSV picker application logic.
-//
-// A double press selects which HSV component is controlled. While the button
-// is held, the selected component changes continuously; releasing the button
-// pauses the change. The yellow LED indicates the selected input mode.
+// Double press selects an HSV component; holding the button changes it.
+// The yellow LED indicates the selected mode.
 
 
-// Device ID used to derive the initial Hue value. Its last two digits are
-// interpreted as a percentage of the full Hue range (00..99 -> 0..356).
+// Last two device-ID digits determine the initial Hue percentage.
 #define DEVICE_ID "6609"
 
-// Input mode selected by double pressing the button. MODE_NO_INPUT disables
-// HSV changes until the next mode is selected.
+// MODE_NO_INPUT disables HSV changes until a mode is selected.
 typedef enum {
     MODE_NO_INPUT,
     MODE_HUE,
@@ -28,7 +23,7 @@ typedef enum {
     MODE_BRIGHTNESS
 } hsv_picker_mode_t;
 
-// Current input mode and whether an HSV change is currently running.
+// Selected input mode and active-change state.
 static hsv_picker_mode_t m_mode;
 static bool m_changing;
 
@@ -47,11 +42,8 @@ static void log_parameter(char const *event, lc_hsv_parameter_t parameter);
 static uint16_t get_initial_hue(void);
 
 
-// Initialize the services and modules used by the HSV picker.
-//
-// The timer service must be initialized before leds_control and the button
-// module because both depend on it. The initial HSV values are applied here,
-// but button processing is enabled later by hsv_picker_start().
+// Initialize dependencies and set the device-specific initial color.
+// Button processing is enabled separately by hsv_picker_start().
 bool hsv_picker_init(void) {
     if (!timer_service_init())
         return false;
@@ -59,12 +51,11 @@ bool hsv_picker_init(void) {
     if (!lc_init())
         return false;
 
-    // Start in a mode where button holds do not change the HSV values.
+    // Button holds do not change HSV until an input mode is selected.
     m_mode = MODE_NO_INPUT;
     m_changing = false;
 
-    // Use the device ID to give each device a reproducible initial Hue.
-    // Full saturation and value make the initial color vivid.
+    // Start with the device-specific Hue and full saturation/value.
     lc_set_hsv(get_initial_hue(), 100, 100);
 
     btn_init(button_event_handler);
@@ -72,22 +63,15 @@ bool hsv_picker_init(void) {
     return true;
 }
 
-// Start user interaction after successful initialization.
-//
-// The yellow LED is turned off to indicate that no HSV input mode is
-// selected. Button events are enabled only after the initial LED state is set.
+// Turn off the mode indicator and enable button events.
 void hsv_picker_start(void) {
     set_yellow_pattern(LC_YELLOW_OFF);
 
     btn_start();
 }
 
-// Dispatch button events to the corresponding picker actions.
-//
-// This callback runs in interrupt context. The logger defers log processing,
-// so logging from this callback does not perform the output operation here.
-// A single-press event is intentionally ignored: press and release events
-// control the HSV change, while a double-press event selects the next mode.
+// Route button events. Single-press is ignored; press/release control HSV,
+// and double-press selects the next input mode. Logging is deferred.
 static void button_event_handler(btn_event_t event) {
     switch (event) {
         case BTN_EVENT_PRESS: button_press(); break;
@@ -98,12 +82,8 @@ static void button_event_handler(btn_event_t event) {
     }
 }
 
-// Start changing the HSV component selected by the current input mode.
-//
-// Ignore a press if a change is already active or if no input mode is
-// selected. The selected component is obtained at press time; the button
-// module reports the matching release before it reports a completed
-// double-press event, so the mode remains consistent for this press cycle.
+// Start changing the selected component unless a change is active or no
+// input mode is selected. The mode cannot advance before this press releases.
 static void button_press(void) {
     lc_hsv_parameter_t parameter;
 
@@ -119,10 +99,7 @@ static void button_press(void) {
     log_parameter("started", parameter);
 }
 
-// Pause the active HSV change when the button is released.
-//
-// Do nothing if no change was started. The component is resolved from the
-// current mode, which is still the same mode that was active on press.
+// Pause the active change. Ignore releases that did not start one.
 static void button_release(void) {
     lc_hsv_parameter_t parameter;
 
@@ -134,20 +111,15 @@ static void button_release(void) {
     log_parameter("finished", parameter);
 }
 
-// Apply a yellow LED pattern. The picker calls this only after successful
-// leds_control initialization and passes only valid patterns; a failure
-// therefore indicates a broken internal module contract.
+// Apply a valid pattern after initialization; failure means an internal
+// leds_control contract has been violated.
 static void set_yellow_pattern(lc_yellow_pattern_t pattern) {
     if (!lc_set_yellow_pattern(pattern))
         APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
 }
 
-// Advance to the next input mode and update the yellow LED indication.
-//
-// The mode order is HUE -> SATURATION -> BRIGHTNESS -> NO_INPUT. Each mode
-// has a distinct yellow LED pattern: slow blink, fast blink, steady on, and
-// off respectively. A failure to apply the indicator pattern is treated as
-// an internal application error.
+// Cycle HUE -> SATURATION -> BRIGHTNESS -> NO_INPUT. The yellow LED uses
+// slow blink, fast blink, on, and off to indicate these modes.
 static void mode_advance(void) {
     switch (m_mode) {
         case MODE_NO_INPUT:
@@ -177,10 +149,7 @@ static void mode_advance(void) {
     }
 }
 
-// Translate the current picker mode to the leds_control HSV parameter.
-//
-// Return false when no input mode is selected. The output parameter is
-// written only for modes that support HSV adjustment.
+// Return the HSV parameter for the current mode, or false for NO_INPUT.
 static bool get_mode_parameter(lc_hsv_parameter_t *parameter) {
     switch (m_mode) {
         case MODE_HUE: *parameter = LC_HUE; return true;
@@ -191,11 +160,8 @@ static bool get_mode_parameter(lc_hsv_parameter_t *parameter) {
     }
 }
 
-// Log the selected component's current value when a change starts or ends.
-//
-// The event argument is expected to be "started" or "finished". Read the
-// complete HSV state and log only the component associated with the active
-// input mode. BRIGHTNESS is the user-facing name for the HSV Value component.
+// Log the selected component's value when its change starts or finishes.
+// BRIGHTNESS is the user-facing name for HSV Value.
 static void log_parameter(char const *event, lc_hsv_parameter_t parameter) {
     uint16_t hue;
     uint8_t saturation;
@@ -218,11 +184,8 @@ static void log_parameter(char const *event, lc_hsv_parameter_t parameter) {
     }
 }
 
-// Calculate the initial Hue from the last two decimal digits of DEVICE_ID.
-//
-// Those digits form a percentage of the 360-degree Hue range. Integer
-// arithmetic intentionally truncates the result to the nearest lower
-// integer degree; for DEVICE_ID "6609", the initial Hue is 32 degrees.
+// Convert the last two device-ID digits from a percentage to Hue degrees.
+// Integer division truncates; DEVICE_ID "6609" produces 32 degrees.
 static uint16_t get_initial_hue(void) {
     uint8_t length = sizeof(DEVICE_ID) - 1;
     uint8_t percent =
