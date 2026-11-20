@@ -1,20 +1,18 @@
 #include <stdbool.h>
 
+#include "app_error.h"
 #include "nrf.h"
 
-#include "btn/btn.h"
-#include "hsv_picker/leds_control/leds_control.h"
+#include "hsv_picker/hsv_picker.h"
 #include "log/log.h"
 
 int main(void) {
-    btn_init();
     log_init();
 
-    if (!lc_init())
-        while (true);
+    if (!hsv_picker_init())
+        APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
 
-    lc_set_hsv(120, 100, 100);
-    lc_set_yellow_pattern(LC_YELLOW_SLOW_BLINK);
+    hsv_picker_start();
 
     while (true) {
         log_process();
