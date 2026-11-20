@@ -39,6 +39,7 @@ static void button_release(void);
 
 // Input mode and logging helpers.
 static void mode_advance(void);
+static void set_yellow_pattern(lc_yellow_pattern_t pattern);
 static bool get_mode_parameter(lc_hsv_parameter_t *parameter);
 static void log_parameter(char const *event, lc_hsv_parameter_t parameter);
 
@@ -76,8 +77,7 @@ bool hsv_picker_init(void) {
 // The yellow LED is turned off to indicate that no HSV input mode is
 // selected. Button events are enabled only after the initial LED state is set.
 void hsv_picker_start(void) {
-    if (!lc_set_yellow_pattern(LC_YELLOW_OFF))
-        APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
+    set_yellow_pattern(LC_YELLOW_OFF);
 
     btn_start();
 }
@@ -134,6 +134,14 @@ static void button_release(void) {
     log_parameter("finished", parameter);
 }
 
+// Apply a yellow LED pattern. The picker calls this only after successful
+// leds_control initialization and passes only valid patterns; a failure
+// therefore indicates a broken internal module contract.
+static void set_yellow_pattern(lc_yellow_pattern_t pattern) {
+    if (!lc_set_yellow_pattern(pattern))
+        APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
+}
+
 // Advance to the next input mode and update the yellow LED indication.
 //
 // The mode order is HUE -> SATURATION -> BRIGHTNESS -> NO_INPUT. Each mode
@@ -144,22 +152,19 @@ static void mode_advance(void) {
     switch (m_mode) {
         case MODE_NO_INPUT:
             m_mode = MODE_HUE;
-            if (!lc_set_yellow_pattern(LC_YELLOW_SLOW_BLINK))
-                APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
+            set_yellow_pattern(LC_YELLOW_SLOW_BLINK);
             LOG_INFO("HSV-picker mode changed to HUE");
             break;
 
         case MODE_HUE:
             m_mode = MODE_SATURATION;
-            if (!lc_set_yellow_pattern(LC_YELLOW_FAST_BLINK))
-                APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
+            set_yellow_pattern(LC_YELLOW_FAST_BLINK);
             LOG_INFO("HSV-picker mode changed to SATURATION");
             break;
 
         case MODE_SATURATION:
             m_mode = MODE_BRIGHTNESS;
-            if (!lc_set_yellow_pattern(LC_YELLOW_ON))
-                APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
+            set_yellow_pattern(LC_YELLOW_ON);
             LOG_INFO("HSV-picker mode changed to BRIGHTNESS");
             break;
 
