@@ -109,15 +109,12 @@ static void button_release(void) {
 }
 
 static void mode_advance(void) {
-    mode_config_t const *config;
-
     m_mode = (m_mode + 1) % MODE_COUNT;
-    config = &m_mode_config[m_mode];
 
-    if (!lc_set_yellow_pattern(config->yellow_pattern))
+    if (!lc_set_yellow_pattern(m_mode_config[m_mode].yellow_pattern))
         APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
 
-    LOG_INFO("HSV mode: %s", config->mode_name);
+    LOG_INFO("HSV mode: %s", m_mode_config[m_mode].mode_name);
 }
 
 static void log_parameter(char const *event, lc_hsv_parameter_t parameter) {
