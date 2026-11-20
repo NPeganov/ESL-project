@@ -26,6 +26,7 @@ static void button_event_handler(btn_event_t event);
 static void button_press(void);
 static void button_release(void);
 static void mode_advance(void);
+static bool mode_parameter_get(lc_hsv_parameter_t *parameter);
 static void log_parameter(char const *event, lc_hsv_parameter_t parameter);
 static uint16_t initial_hue_get(void);
 
@@ -74,28 +75,10 @@ static void button_event_handler(btn_event_t event) {
 }
 
 static void button_press(void) {
-    if (m_mode == MODE_NO_INPUT || m_changing)
-        return;
-
     lc_hsv_parameter_t parameter;
 
-    switch (m_mode) {
-        case MODE_HUE:
-            parameter = LC_HUE;
-            break;
-
-        case MODE_SATURATION:
-            parameter = LC_SATURATION;
-            break;
-
-        case MODE_BRIGHTNESS:
-            parameter = LC_VALUE;
-            break;
-
-        case MODE_NO_INPUT:
-        default:
-            return;
-    }
+    if (m_changing || !mode_parameter_get(&parameter))
+        return;
 
     if (!lc_start_hsv_change(parameter)) {
         LOG_ERROR("Failed to start HSV parameter change");
@@ -107,28 +90,10 @@ static void button_press(void) {
 }
 
 static void button_release(void) {
-    if (!m_changing)
-        return;
-
     lc_hsv_parameter_t parameter;
 
-    switch (m_mode) {
-        case MODE_HUE:
-            parameter = LC_HUE;
-            break;
-
-        case MODE_SATURATION:
-            parameter = LC_SATURATION;
-            break;
-
-        case MODE_BRIGHTNESS:
-            parameter = LC_VALUE;
-            break;
-
-        case MODE_NO_INPUT:
-        default:
-            return;
-    }
+    if (!m_changing || !mode_parameter_get(&parameter))
+        return;
 
     lc_stop_hsv_change();
     m_changing = false;
@@ -163,6 +128,26 @@ static void mode_advance(void) {
                 APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
             LOG_INFO("HSV mode: NO_INPUT");
             break;
+    }
+}
+
+static bool mode_parameter_get(lc_hsv_parameter_t *parameter) {
+    switch (m_mode) {
+        case MODE_HUE:
+            *parameter = LC_HUE;
+            return true;
+
+        case MODE_SATURATION:
+            *parameter = LC_SATURATION;
+            return true;
+
+        case MODE_BRIGHTNESS:
+            *parameter = LC_VALUE;
+            return true;
+
+        case MODE_NO_INPUT:
+        default:
+            return false;
     }
 }
 
