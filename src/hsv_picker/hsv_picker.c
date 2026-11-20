@@ -55,21 +55,11 @@ void hsv_picker_start(void) {
 static void button_event_handler(btn_event_t event) {
     // This callback runs in interrupt context; logging is deferred by the logger.
     switch (event) {
-        case BTN_EVENT_PRESS:
-            button_press();
-            break;
-
-        case BTN_EVENT_RELEASE:
-            button_release();
-            break;
-
-        case BTN_EVENT_DOUBLE_PRESS:
-            mode_advance();
-            break;
-
+        case BTN_EVENT_PRESS: button_press(); break;
+        case BTN_EVENT_RELEASE: button_release(); break;
+        case BTN_EVENT_DOUBLE_PRESS: mode_advance(); break;
         case BTN_EVENT_SINGLE_PRESS:
-        default:
-            break;
+        default: break;
     }
 }
 
@@ -103,43 +93,28 @@ static void mode_advance(void) {
     switch (m_mode) {
         case MODE_NO_INPUT:
             m_mode = MODE_HUE;
-            break;
-
-        case MODE_HUE:
-            m_mode = MODE_SATURATION;
-            break;
-
-        case MODE_SATURATION:
-            m_mode = MODE_BRIGHTNESS;
-            break;
-
-        case MODE_BRIGHTNESS:
-        default:
-            m_mode = MODE_NO_INPUT;
-            break;
-    }
-
-    switch (m_mode) {
-        case MODE_HUE:
             if (!lc_set_yellow_pattern(LC_YELLOW_SLOW_BLINK))
                 APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
             LOG_INFO("HSV mode: HUE");
             break;
 
-        case MODE_SATURATION:
+        case MODE_HUE:
+            m_mode = MODE_SATURATION;
             if (!lc_set_yellow_pattern(LC_YELLOW_FAST_BLINK))
                 APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
             LOG_INFO("HSV mode: SATURATION");
             break;
 
-        case MODE_BRIGHTNESS:
+        case MODE_SATURATION:
+            m_mode = MODE_BRIGHTNESS;
             if (!lc_set_yellow_pattern(LC_YELLOW_ON))
                 APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
             LOG_INFO("HSV mode: BRIGHTNESS");
             break;
 
-        case MODE_NO_INPUT:
+        case MODE_BRIGHTNESS:
         default:
+            m_mode = MODE_NO_INPUT;
             if (!lc_set_yellow_pattern(LC_YELLOW_OFF))
                 APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
             LOG_INFO("HSV mode: NO_INPUT");
@@ -149,21 +124,11 @@ static void mode_advance(void) {
 
 static bool mode_parameter_get(lc_hsv_parameter_t *parameter) {
     switch (m_mode) {
-        case MODE_HUE:
-            *parameter = LC_HUE;
-            return true;
-
-        case MODE_SATURATION:
-            *parameter = LC_SATURATION;
-            return true;
-
-        case MODE_BRIGHTNESS:
-            *parameter = LC_VALUE;
-            return true;
-
+        case MODE_HUE: *parameter = LC_HUE; return true;
+        case MODE_SATURATION: *parameter = LC_SATURATION; return true;
+        case MODE_BRIGHTNESS: *parameter = LC_VALUE; return true;
         case MODE_NO_INPUT:
-        default:
-            return false;
+        default: return false;
     }
 }
 
