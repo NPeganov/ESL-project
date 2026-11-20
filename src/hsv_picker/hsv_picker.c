@@ -25,9 +25,9 @@ static void button_event_handler(btn_event_t event);
 static void button_press(void);
 static void button_release(void);
 static void mode_advance(void);
-static bool mode_parameter_get(lc_hsv_parameter_t *parameter);
+static bool get_mode_parameter(lc_hsv_parameter_t *parameter);
 static void log_parameter(char const *event, lc_hsv_parameter_t parameter);
-static uint16_t initial_hue_get(void);
+static uint16_t get_initial_hue(void);
 
 bool hsv_picker_init(void) {
     if (!timer_service_init())
@@ -39,7 +39,7 @@ bool hsv_picker_init(void) {
     m_mode = MODE_NO_INPUT;
     m_changing = false;
 
-    lc_set_hsv(initial_hue_get(), 100, 100);
+    lc_set_hsv(get_initial_hue(), 100, 100);
     btn_init(button_event_handler);
 
     return true;
@@ -66,7 +66,7 @@ static void button_event_handler(btn_event_t event) {
 static void button_press(void) {
     lc_hsv_parameter_t parameter;
 
-    if (m_changing || !mode_parameter_get(&parameter))
+    if (m_changing || !get_mode_parameter(&parameter))
         return;
 
     if (!lc_start_hsv_change(parameter)) {
@@ -81,7 +81,7 @@ static void button_press(void) {
 static void button_release(void) {
     lc_hsv_parameter_t parameter;
 
-    if (!m_changing || !mode_parameter_get(&parameter))
+    if (!m_changing || !get_mode_parameter(&parameter))
         return;
 
     lc_stop_hsv_change();
@@ -122,7 +122,7 @@ static void mode_advance(void) {
     }
 }
 
-static bool mode_parameter_get(lc_hsv_parameter_t *parameter) {
+static bool get_mode_parameter(lc_hsv_parameter_t *parameter) {
     switch (m_mode) {
         case MODE_HUE: *parameter = LC_HUE; return true;
         case MODE_SATURATION: *parameter = LC_SATURATION; return true;
@@ -154,7 +154,7 @@ static void log_parameter(char const *event, lc_hsv_parameter_t parameter) {
     }
 }
 
-static uint16_t initial_hue_get(void) {
+static uint16_t get_initial_hue(void) {
     uint8_t length = sizeof(DEVICE_ID) - 1;
     uint8_t percent =
         (DEVICE_ID[length - 2] - '0') * 10 +
