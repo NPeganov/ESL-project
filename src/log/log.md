@@ -1,175 +1,57 @@
-# log
+# log — логирование приложения
 
-Модуль log — тонкая прикладная обёртка над Nordic logger.
+## Назначение
 
-Его задача — скрыть от application-кода зависимости от Nordic logging API и USB backend.
+`log` — тонкая обёртка над Nordic logger и включённым USB CDC ACM backend. Она предоставляет приложению единый интерфейс и скрывает детали Nordic logging API.
 
----
+## Публичный API
 
-# Публичный API
-
-~~~ c
+```c
 void log_init(void);
 void log_process(void);
 
-#define LOG_INFO(...)
-#define LOG_WARNING(...)
-#define LOG_ERROR(...)
-~~~
+LOG_INFO(...);
+LOG_WARNING(...);
+LOG_ERROR(...);
+```
 
-Макросы LOG_INFO(), LOG_WARNING() и LOG_ERROR() являются прямыми обёртками соответствующих макросов Nordic logger.
+Макросы напрямую вызывают соответствующие макросы Nordic logger. Модуль не реализует собственную очередь, форматирование или политику уровней.
 
-Модуль не предоставляет собственного формата сообщений, фильтрации или буферизации.
+## Инициализация
 
----
+`log_init()` вызывает:
 
-# Инициализация
+1. `NRF_LOG_INIT(NULL)`;
+2. `NRF_LOG_DEFAULT_BACKENDS_INIT()`.
 
-`log_init()` выполняет:
+Второй вызов инициализирует настроенные backend, включая USB logging backend.
 
-~~~ text
-log_init()
-    |
-    +--> NRF_LOG_INIT(NULL)
-    |
-    +--> NRF_LOG_DEFAULT_BACKENDS_INIT()
-              |
-              v
-       USB logging backend
-              |
-              v
-          USB CDC ACM
-~~~
+В текущем `main()` логирование инициализируется до `hsv_picker_init()`. Это не инициализирует LFCLK или app_timer: общую timer infrastructure позднее подготавливает `timer_service_init()`.
 
-USB backend инициализируется через стандартный механизм NRF_LOG_DEFAULT_BACKENDS_INIT().
+## Обработка отложенных сообщений
 
-Отдельный вызов USB backend init из application-кода не требуется.
+В конфигурации включён deferred logging. Макросы `LOG_INFO`, `LOG_WARNING` и `LOG_ERROR` передают сообщения Nordic logger; фактическая обработка выполняется из основного цикла.
 
----
+`log_process()` сначала вызывает `LOG_BACKEND_USB_PROCESS()`, затем `NRF_LOG_PROCESS()`. Поэтому функция должна регулярно вызываться из main loop.
 
-# Временная зависимость
+USB backend может отбросить сообщения, пока CDC ACM порт не открыт. Это отражено в реализации комментарием перед обработкой USB events.
 
-USB backend использует clock infrastructure.
+## Использование в callback
 
-В текущей архитектуре владельцем shared legacy clock driver и LFCLK является btn_init():
+Прикладные callback кнопки могут записывать сообщения через deferred logger. USB обработка не вызывается непосредственно макросом `LOG_*`; отправка и обработка backend выполняются позднее из `log_process()`.
 
-~~~ text
-btn_init()
-    |
-    +--> nrf_drv_clock_init_check()
-    +--> nrf_drv_clock_init() if needed
-    +--> LFCLK request/start
-    +--> app_timer_init()
-              |
-              +-------------------+
-                                  |
-                                  v
-                           log USB backend
-~~~
+Callback всё равно должен оставаться коротким и не выполнять синхронную USB-передачу или тяжёлую работу.
 
-Поэтому log_init() вызывается после btn_init().
+## Конфигурация
 
-Модуль log не должен самостоятельно инициализировать clock driver или LFCLK.
+Основные параметры находятся в `src/config/app_config.h` и SDK configuration:
 
----
+- `NRF_LOG_ENABLED`;
+- `NRF_LOG_DEFERRED`;
+- `LOG_BACKEND_USB_ENABLED`;
+- `APP_USBD_ENABLED`;
+- `APP_USBD_CDC_ACM_ENABLED`.
 
-# Обработка
+## Границы ответственности
 
-Главный цикл вызывает:
-
-~~~ c
-log_process();
-~~~
-
-Внутри:
-
-~~~ text
-log_process()
-    |
-    +--> LOG_BACKEND_USB_PROCESS()
-    |          |
-    |          v
-    |     app_usbd event queue
-    |
-    +--> NRF_LOG_PROCESS()
-               |
-               v
-        one deferred log entry
-~~~
-
-NRF_LOG_PROCESS() в deferred mode обрабатывает максимум одну запись за вызов.
-
-Поэтому log_process() вызывается регулярно из main loop.
-
-USB event processing также выполняется каждый проход main loop.
-
----
-
-# Особенность USB передачи
-
-USB backend может синхронно ожидать завершения передачи при отправке сообщения в открытый CDC порт.
-
-Поэтому deferred logging уменьшает работу в месте вызова LOG_*, но не делает обработку log_process() гарантированно неблокирующей.
-
-Это особенно важно для текущего polling-based software PWM: длительная USB передача может увеличить интервал между вызовами soft_pwm_process().
-
-Логирование используется также из callback кнопки, которые выполняются
-в interrupt context. При `NRF_LOG_DEFERRED == 1` вызов `LOG_INFO()`
-не выполняет USB-передачу непосредственно из callback: сообщение
-передаётся deferred logger для последующей обработки из main loop.
-
-Поэтому обработчики кнопки сохраняют короткую длительность и не
-выполняют USB или другую длительную обработку.
-
----
-
-# Граница модуля
-
-Application-код:
-
-~~~ c
-#include "log/log.h"
-
-log_init();
-
-LOG_INFO("Application started");
-
-log_process();
-~~~
-
-не должен знать о Nordic logger frontend, default backends, USB backend, app_usbd или CDC ACM.
-
-Эти детали остаются внутри реализации и конфигурации модуля.
-
----
-
-# Конфигурация
-
-USB logging backend включается через app_config.h.
-
-Основные параметры:
-
-~~~ c
-#define NRF_LOG_ENABLED 1
-#define NRF_LOG_DEFERRED 1
-#define LOG_BACKEND_USB_ENABLED 1
-#define APP_USBD_ENABLED 1
-~~~
-
-Полная конфигурация backend и USB device находится в src/app_config.h.
-
-src/sdk_config.h остаётся общей SDK-конфигурацией и подключает app_config.h при определённом USE_APP_CONFIG.
-
----
-
-# Ограничения
-
-Модуль log не должен:
-
-- владеть LFCLK;
-- владеть app_timer;
-- инициализировать USB из main напрямую;
-- содержать application-specific log policy;
-- выполнять тяжёлую обработку в ISR.
-
-Его роль — минимальный composition boundary между application и Nordic logging stack.
+`log` не владеет LFCLK, app_timer или прикладными таймерами. Он не выбирает, какие события приложения логировать, и не содержит application-specific сообщений. Точка вызова `log_process()` принадлежит основному циклу в `main`.
