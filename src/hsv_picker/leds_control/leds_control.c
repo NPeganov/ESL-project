@@ -16,7 +16,7 @@ APP_TIMER_DEF(control_timer);
 
 static bool initialized;
 
-static void timer_handler(void *);
+static void timer_handler(void *p_context);
 
 // Initializes the LED driver, both control modules and their shared timer.
 bool lc_init(void) {
@@ -86,6 +86,8 @@ bool lc_set_yellow_pattern(lc_yellow_pattern_t pattern) {
 // Updates both control modules using one timestamp for a consistent time base.
 static void timer_handler(void *p_context) {
     uint32_t now = app_timer_cnt_get();
+
+    (void)p_context;
 
     hsv_process(now);
     yellow_process(now);
