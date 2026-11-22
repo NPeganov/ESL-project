@@ -1,47 +1,43 @@
 # ESL-project
 
-Проект для nRF52840 на плате PCA10059.
+Приложение HSV color picker для nRF52840 на плате PCA10059.
 
-Сборка и прошивка:
+## Сборка и прошивка
+
+SDK ожидается в `../esl-nsdk`.
 
 ```sh
-make clean && make && make dfu
+make clean && make
+make dfu
 ```
 
-SDK по умолчанию ожидается в `../esl-nsdk`.
+## Структура
 
-## Структура приложения
-
-- `src/main.c` — точка входа, запуск приложения и обработка отложенных логов.
-- `src/hsv_picker/` — прикладная логика HSV color picker.
-- `src/hsv_picker/leds_control/` — управление RGB и жёлтым LED для HSV picker.
-- `src/leds/` — высокоуровневый аппаратный PWM-драйвер LED и преобразования RGB/HSV.
-- `src/hardware/` — низкоуровневые драйверы PWM и GPIO.
-- `src/timer_service/` — общая инициализация LFCLK и app_timer.
-- `src/btn/` — обработка кнопки.
-- `src/log/` — логирование через USB CDC ACM.
+- `src/main.c` — точка входа и основной цикл.
+- `src/hsv_picker/` — пользовательские режимы HSV Picker.
+- `src/hsv_picker/leds_control/` — изменение HSV и индикация жёлтым LED.
+- `src/btn/` — аппаратный debounce и логические события кнопки.
+- `src/leds/` — RGB/HSV и LED PWM abstraction.
+- `src/hardware/pwm/` — низкоуровневый nRF PWM driver.
+- `src/hardware/leds_gpio/` — независимый GPIO LED driver.
+- `src/timer_service/` — общая инициализация LFCLK/app_timer.
+- `src/log/` — deferred logging через USB CDC ACM.
 
 ## Документация
 
-### Приложение HSV Picker
+Главный документ — [сквозное описание приложения](src/main.md). Он объясняет архитектуру и весь путь от запуска приложения и действий пользователя до физических PWM-выходов.
 
-- [HSV Picker](src/hsv_picker/README.md)
-- [leds_control](src/hsv_picker/leds_control/README.md)
-- [Публичный координатор leds_control](src/hsv_picker/leds_control/leds_control.md)
-- [Контроллер изменения HSV](src/hsv_picker/leds_control/leds_control_hsv.md)
-- [Контроллер жёлтого LED](src/hsv_picker/leds_control/leds_control_yellow.md)
+Документация отдельных модулей:
 
-### Аппаратные и LED-модули
-
-- [Аппаратный PWM](src/hardware/pwm/pwm.md)
+- [HSV Picker](src/hsv_picker/hsv_picker.md)
+- [Button subsystem](src/btn/README.md), [btn](src/btn/btn.md), [btn_hw](src/btn/btn_hw.md)
+- [LED control facade](src/hsv_picker/leds_control/leds_control.md)
+- [HSV controller](src/hsv_picker/leds_control/leds_control_hsv.md)
+- [Yellow LED controller](src/hsv_picker/leds_control/leds_control_yellow.md)
+- [LED PWM driver](src/leds/leds_pwm.md), [color conversion](src/leds/internal/color.md)
+- [Hardware PWM](src/hardware/pwm/pwm.md)
 - [GPIO LED driver](src/hardware/leds_gpio/leds_gpio.md)
-- [LED modules](src/leds/README.md)
-- [leds_pwm](src/leds/leds_pwm.md)
-- [color conversion](src/leds/internal/color.md)
+- [Timer service](src/timer_service/timer_service.md)
+- [Logging](src/log/log.md)
 
-### Остальные модули
-
-- [Button](src/btn/README.md)
-- [Logging](src/log/README.md)
-
-Исходники в этой ветке синхронизированы по структуре и содержимому с `workshop-7`; Markdown-файлы описывают архитектуру и контракты модулей.
+Исходный код в этой ветке не является самостоятельной версией приложения; документация сверяется с реализацией ветки `workshop-7`.
