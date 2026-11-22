@@ -1,39 +1,47 @@
 #include <stdbool.h>
-#include <stdint.h>
 
 #include "nrf_delay.h"
 
-#include "leds/leds_pwm.h"
+#include "hsv_picker/leds_control/leds_control.h"
+#include "timer_service/timer_service.h"
 
-#define DEMO_PERIOD_MS 1000
-#define RGB_COLOR_COUNT 6
+#define HSV_CHANGE_DURATION_MS 5000
+#define YELLOW_PATTERN_DURATION_MS 3000
 
-static const uint8_t m_rgb_colors[RGB_COLOR_COUNT][3] = {
-    { 255, 0, 0 },       // Red
-    { 0, 255, 0 },       // Green
-    { 0, 0, 255 },       // Blue
-    { 255, 255, 0 },     // Red + green
-    { 0, 255, 255 },     // Green + blue
-    { 255, 0, 255 }      // Red + blue
-};
-
+// Demonstrate independent HSV changes and yellow LED indication patterns.
 int main(void) {
-    uint8_t color = 0;
-    bool yellow_bright = true;
-
-    if (!leds_pwm_init())
+    if (!timer_service_init())
         while (true);
 
+    if (!lc_init())
+        while (true);
+
+    lc_set_hsv(0, 100, 100);
+    lc_set_yellow_pattern(LC_YELLOW_SLOW_BLINK);
+
     while (true) {
-        leds_pwm_set_yellow_brightness(yellow_bright ? 100 : 50);
-        leds_pwm_set_rgb(
-            m_rgb_colors[color][0],
-            m_rgb_colors[color][1],
-            m_rgb_colors[color][2]);
+        lc_start_hsv_change(LC_HUE);
+        nrf_delay_ms(HSV_CHANGE_DURATION_MS);
+        lc_stop_hsv_change();
 
-        yellow_bright = !yellow_bright;
-        color = (color + 1) % RGB_COLOR_COUNT;
+        lc_start_hsv_change(LC_SATURATION);
+        nrf_delay_ms(HSV_CHANGE_DURATION_MS);
+        lc_stop_hsv_change();
 
-        nrf_delay_ms(DEMO_PERIOD_MS);
+        lc_start_hsv_change(LC_VALUE);
+        nrf_delay_ms(HSV_CHANGE_DURATION_MS);
+        lc_stop_hsv_change();
+
+        // Restore a visible RGB color before testing the yellow LED patterns.
+        lc_set_hsv(0, 100, 100);
+
+        lc_set_yellow_pattern(LC_YELLOW_FAST_BLINK);
+        nrf_delay_ms(YELLOW_PATTERN_DURATION_MS);
+
+        lc_set_yellow_pattern(LC_YELLOW_ON);
+        nrf_delay_ms(YELLOW_PATTERN_DURATION_MS);
+
+        lc_set_yellow_pattern(LC_YELLOW_OFF);
+        nrf_delay_ms(YELLOW_PATTERN_DURATION_MS);
     }
 }
