@@ -3,30 +3,20 @@
 
 #include "app_error.h"
 #include "app_timer.h"
-#include "app_util_platform.h"
-#include "nrf_drv_clock.h"
+#include "nrf_assert.h"
 
 #include "btn.h"
 #include "btn_hw.h"
-#include "log/log.h"
 
 #ifndef BTN_DOUBLE_PRESS_TIME_MS
 #define BTN_DOUBLE_PRESS_TIME_MS 1000
-#endif
-
-#ifndef BTN_EVENT_QUEUE_SIZE
-#define BTN_EVENT_QUEUE_SIZE 8
 #endif
 
 // The timer is single-shot because the double-press interval is restarted
 // explicitly after every confirmed release.
 APP_TIMER_DEF(m_double_press_timer);
 
-static btn_event_t m_event_queue[BTN_EVENT_QUEUE_SIZE];
-
-static volatile uint8_t m_event_head;
-static volatile uint8_t m_event_tail;
-static volatile uint8_t m_event_count;
+static btn_event_handler_t m_event_handler;
 
 // True after the initial button state has been confirmed.
 static bool m_state_initialized;
@@ -39,15 +29,14 @@ static bool m_double_press_pending;
 
 static uint32_t m_first_release_tick;
 
-static void clock_init(void);
-static void event_queue_push(btn_event_t event);
 static void button_state_changed(bool pressed);
+static void event_notify(btn_event_t event);
 static void double_press_timer_handler(void *p_context);
 
-void btn_init(void) {
-    clock_init();
+void btn_init(btn_event_handler_t event_handler) {
+    ASSERT(event_handler != NULL);
 
-    APP_ERROR_CHECK(app_timer_init());
+    m_event_handler = event_handler;
 
     btn_hw_init(button_state_changed);
 
@@ -55,56 +44,10 @@ void btn_init(void) {
         &m_double_press_timer,
         APP_TIMER_MODE_SINGLE_SHOT,
         double_press_timer_handler));
+}
 
+void btn_start(void) {
     btn_hw_start();
-}
-
-btn_event_t btn_event_take(void) {
-    btn_event_t event = BTN_EVENT_NONE;
-
-    CRITICAL_REGION_ENTER();
-
-    if (m_event_count > 0) {
-        event = m_event_queue[m_event_tail];
-
-        m_event_tail++;
-        if (m_event_tail >= BTN_EVENT_QUEUE_SIZE)
-            m_event_tail = 0;
-
-        m_event_count--;
-    }
-
-    CRITICAL_REGION_EXIT();
-
-    return event;
-}
-
-static void clock_init(void) {
-    // Initialize the shared legacy clock driver if it is not initialized yet.
-    if (!nrf_drv_clock_init_check())
-        APP_ERROR_CHECK(nrf_drv_clock_init());
-
-    // Keep LFCLK running for the button debounce timer.
-    nrf_drv_clock_lfclk_request(NULL);
-
-    while (!nrf_drv_clock_lfclk_is_running());
-}
-
-static void event_queue_push(btn_event_t event) {
-    CRITICAL_REGION_ENTER();
-
-    // Discard new events if the queue is full to preserve unread events.
-    if (m_event_count < BTN_EVENT_QUEUE_SIZE) {
-        m_event_queue[m_event_head] = event;
-
-        m_event_head++;
-        if (m_event_head >= BTN_EVENT_QUEUE_SIZE)
-            m_event_head = 0;
-
-        m_event_count++;
-    }
-
-    CRITICAL_REGION_EXIT();
 }
 
 static void button_state_changed(bool pressed) {
@@ -124,24 +67,18 @@ static void button_state_changed(bool pressed) {
     if (pressed) {
         m_press_started = true;
 
-        LOG_INFO("Button event: PRESSED");
-
-        event_queue_push(BTN_EVENT_PRESS);
+        event_notify(BTN_EVENT_PRESS);
         return;
     }
 
-    LOG_INFO("Button event: RELEASED");
-
-    event_queue_push(BTN_EVENT_RELEASE);
+    event_notify(BTN_EVENT_RELEASE);
 
     if (!m_press_started) return;
 
     m_press_started = false;
 
     // Report every completed press-release cycle.
-    LOG_INFO("Button event: SINGLE");
-
-    event_queue_push(BTN_EVENT_SINGLE_PRESS);
+    event_notify(BTN_EVENT_SINGLE_PRESS);
 
     now = app_timer_cnt_get();
 
@@ -153,9 +90,7 @@ static void button_state_changed(bool pressed) {
             APP_ERROR_CHECK(app_timer_stop(m_double_press_timer));
 
             // The second completed cycle occurred within the double-press interval.
-            LOG_INFO("Button event: DOUBLE");
-
-            event_queue_push(BTN_EVENT_DOUBLE_PRESS);
+            event_notify(BTN_EVENT_DOUBLE_PRESS);
             return;
         }
 
@@ -170,6 +105,10 @@ static void button_state_changed(bool pressed) {
         m_double_press_timer,
         APP_TIMER_TICKS(BTN_DOUBLE_PRESS_TIME_MS),
         NULL));
+}
+
+static void event_notify(btn_event_t event) {
+    m_event_handler(event);
 }
 
 static void double_press_timer_handler(void *p_context) {

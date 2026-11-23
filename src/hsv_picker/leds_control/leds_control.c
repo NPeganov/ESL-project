@@ -1,0 +1,94 @@
+#include <stdbool.h>
+#include <stdint.h>
+
+#include "app_timer.h"
+#include "nrf_error.h"
+
+#include "leds_control.h"
+#include "../../leds/leds_pwm.h"
+#include "leds_control_hsv.h"
+#include "leds_control_yellow.h"
+
+// Both control modules are updated by this shared periodic timer.
+#define CONTROL_TIMER_INTERVAL_MS 10
+
+APP_TIMER_DEF(control_timer);
+
+static bool initialized;
+
+static void timer_handler(void *p_context);
+
+// Initializes the LED driver, both control modules and their shared timer.
+bool lc_init(void) {
+    if (initialized) return false;
+
+    if (!leds_pwm_init()) return false;
+
+    leds_pwm_set_yellow_brightness(0);
+
+    hsv_init();
+    yellow_init();
+
+    if (app_timer_create(
+            &control_timer,
+            APP_TIMER_MODE_REPEATED,
+            timer_handler) != NRF_SUCCESS)
+        return false;
+
+    initialized = true;
+
+    if (app_timer_start(
+            control_timer,
+            APP_TIMER_TICKS(CONTROL_TIMER_INTERVAL_MS),
+            NULL) != NRF_SUCCESS) {
+        initialized = false;
+        return false;
+    }
+
+    return true;
+}
+
+// Sets the RGB LED color through the PWM driver.
+void lc_set_hsv(
+    uint16_t hue,
+    uint8_t saturation,
+    uint8_t value) {
+    leds_pwm_set_hsv(hue, saturation, value);
+}
+
+// Reads the current RGB LED color from the PWM driver's cached HSV values.
+void lc_get_hsv(
+    uint16_t *hue,
+    uint8_t *saturation,
+    uint8_t *value) {
+    leds_pwm_get_hsv(hue, saturation, value);
+}
+
+// Starts changing the selected HSV parameter, or resumes it if paused.
+bool lc_start_hsv_change(lc_hsv_parameter_t parameter) {
+    if (!initialized) return false;
+
+    return hsv_start(parameter);
+}
+
+// Pauses the active HSV parameter change without resetting its progress.
+void lc_stop_hsv_change(void) {
+    hsv_stop();
+}
+
+// Selects the yellow LED indication pattern.
+bool lc_set_yellow_pattern(lc_yellow_pattern_t pattern) {
+    if (!initialized) return false;
+
+    return yellow_set_pattern(pattern);
+}
+
+// Updates both control modules using one timestamp for a consistent time base.
+static void timer_handler(void *p_context) {
+    uint32_t now = app_timer_cnt_get();
+
+    (void)p_context;
+
+    hsv_process(now);
+    yellow_process(now);
+}

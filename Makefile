@@ -13,8 +13,8 @@ $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
 
 # Source files common to all targets
 SRC_FILES += \
-  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_systick.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_gpiote.c \
+  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_pwm.c \
   $(SDK_ROOT)/components/libraries/timer/app_timer2.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_clock.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_power.c \
@@ -32,11 +32,15 @@ SRC_FILES += \
   $(SDK_ROOT)/components/libraries/util/app_error_weak.c \
   $(SDK_ROOT)/components/libraries/strerror/nrf_strerror.c \
   $(PROJ_DIR)/main.c \
-  $(PROJ_DIR)/leds/leds.c \
-  $(PROJ_DIR)/leds/soft_pwm.c \
-  $(PROJ_DIR)/leds/fade.c \
-  $(PROJ_DIR)/leds/led_controller.c \
-  $(PROJ_DIR)/leds/led_sequence.c \
+  $(PROJ_DIR)/hsv_picker/hsv_picker.c \
+  $(PROJ_DIR)/hardware/pwm/pwm.c \
+  $(PROJ_DIR)/hardware/leds_gpio/leds_gpio.c \
+  $(PROJ_DIR)/leds/leds_pwm.c \
+  $(PROJ_DIR)/hsv_picker/leds_control/leds_control.c \
+  $(PROJ_DIR)/hsv_picker/leds_control/leds_control_hsv.c \
+  $(PROJ_DIR)/hsv_picker/leds_control/leds_control_yellow.c \
+  $(PROJ_DIR)/leds/internal/color.c \
+  $(PROJ_DIR)/timer_service/timer_service.c \
   $(PROJ_DIR)/btn/btn.c \
   $(PROJ_DIR)/btn/btn_hw.c \
   $(PROJ_DIR)/log/log.c \
@@ -56,11 +60,12 @@ SRC_FILES += \
   $(SDK_ROOT)/external/fprintf/nrf_fprintf_format.c \
   $(SDK_ROOT)/external/utf_converter/utf.c \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52840.S \
-  $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52840.c \
+  $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52840.c
 
 # Include folders common to all targets
 INC_FOLDERS += \
   $(PROJ_DIR) \
+  $(PROJ_DIR)/config \
   $(SDK_ROOT)/components \
   $(SDK_ROOT)/modules/nrfx/mdk \
   $(SDK_ROOT)/modules/nrfx/drivers/include/ \
@@ -71,10 +76,10 @@ INC_FOLDERS += \
   $(SDK_ROOT)/modules/nrfx/hal \
   $(SDK_ROOT)/modules/nrfx \
   $(SDK_ROOT)/modules/nrfx/soc \
-  $(SDK_ROOT)/components/libraries/delay \
   $(SDK_ROOT)/integration/nrfx \
   $(SDK_ROOT)/integration/nrfx/legacy \
   $(SDK_ROOT)/components/libraries/timer \
+  $(SDK_ROOT)/components/libraries/delay \
   $(SDK_ROOT)/components/libraries/atomic \
   $(SDK_ROOT)/components/libraries/ringbuf \
   $(SDK_ROOT)/components/libraries/atomic_fifo \
@@ -90,10 +95,7 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/libraries/log \
   $(SDK_ROOT)/components/libraries/log/src \
   $(SDK_ROOT)/components/drivers_nrf/nrf_soc_nosd \
-  $(SDK_ROOT)/components/boards \
-
-# Libraries common to all targets
-LIB_FILES += \
+  $(SDK_ROOT)/components/boards
 
 # Optimization flags
 OPT = -O3 -g3
@@ -157,7 +159,7 @@ LIB_FILES += -lc -lnosys -lm
 # Default target - first one defined
 default: nrf52840_xxaa
 
-# Print all targets that can be built
+# Print all targets
 help:
 	@echo following targets are available:
 	@echo		nrf52840_xxaa
