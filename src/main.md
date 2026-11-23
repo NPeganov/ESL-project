@@ -306,7 +306,7 @@ PWM не знает о назначении каналов как yellow/red/gre
 
 ## Ошибки и ограничения
 
-- Ошибка инициализации timer service, LED control или PWM приводит к отказу `hsv_picker_init()`; `main` передаёт ошибку в `APP_ERROR_HANDLER`.
+- Ошибка инициализации NVM log, timer service, LED control или PWM приводит к отказу `hsv_picker_init()`; `main` передаёт ошибку в `APP_ERROR_HANDLER`.
 - Ошибка создания или запуска общего control timer приводит к `false` из `lc_init()`.
 - `btn_init()` и `btn_start()` используют Nordic error/assert механизм для ошибок конфигурации и таймеров.
 - PWM частота и период обновления фиксированы внутри `hardware/pwm`; публичного API изменения частоты нет.
