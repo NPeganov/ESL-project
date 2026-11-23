@@ -5,9 +5,10 @@
 ## Файлы
 
 - `hsv_picker.h` — внешний интерфейс приложения.
-- `hsv_picker.c` — режимы выбора HSV, обработка событий кнопки и начальная настройка цвета.
+- `hsv_picker.c` — режимы выбора HSV, обработка событий кнопки, восстановление/сохранение цвета и начальная настройка.
 - [hsv_picker.md](hsv_picker.md) — подробное описание архитектуры, инициализации и поведения приложения.
 - [leds_control](leds_control/README.md) — прикладной уровень управления RGB и жёлтым LED.
+- [nvm_log](../nvm_log/nvm_log.md) — хранение последнего HSV payload в Application Data Area.
 
 ## Инициализация и запуск
 
@@ -18,9 +19,9 @@ bool hsv_picker_init(void);
 void hsv_picker_start(void);
 ```
 
-`hsv_picker_init()` инициализирует timer service, `leds_control`, начальный цвет и обработчик событий кнопки.
+`hsv_picker_init()` инициализирует NVM log, timer service, `leds_control`, восстанавливает сохранённый цвет (или формирует default из `DEVICE_ID`) и регистрирует обработчик кнопки.
 
-`hsv_picker_start()` выключает жёлтый LED и запускает обработку кнопки.
+`hsv_picker_start()` выключает жёлтый LED и запускает обработку кнопки. `hsv_picker_process()` выполняет отложенное сохранение HSV из основного цикла.
 
 ## Режимы управления
 
