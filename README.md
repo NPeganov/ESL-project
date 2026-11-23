@@ -30,6 +30,7 @@ make dfu
 Документация отдельных модулей:
 
 - [HSV Picker](src/hsv_picker/hsv_picker.md)
+- [NVM log](src/nvm_log/nvm_log.md)
 - [Button subsystem](src/btn/README.md), [btn](src/btn/btn.md), [btn_hw](src/btn/btn_hw.md)
 - [LED control facade](src/hsv_picker/leds_control/leds_control.md)
 - [HSV controller](src/hsv_picker/leds_control/leds_control_hsv.md)
