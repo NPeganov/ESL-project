@@ -15,6 +15,7 @@ make dfu
 
 - `src/main.c` — точка входа и основной цикл.
 - `src/hsv_picker/` — пользовательские режимы HSV Picker.
+- `src/nvm_log/` — одностраничный журнал 32-битных записей в Application Data Area.
 - `src/hsv_picker/leds_control/` — изменение HSV и индикация жёлтым LED.
 - `src/btn/` — аппаратный debounce и логические события кнопки.
 - `src/leds/` — RGB/HSV и LED PWM abstraction.
