@@ -2,10 +2,12 @@
 #include <stdint.h>
 
 #include "app_error.h"
+#include "app_util_platform.h"
 
 #include "btn/btn.h"
 #include "leds_control/leds_control.h"
 #include "log/log.h"
+#include "nvm_log/nvm_log.h"
 #include "timer_service/timer_service.h"
 
 // Double press selects an HSV component; holding the button changes it.
@@ -14,6 +16,11 @@
 
 // Last two device-ID digits determine the initial Hue percentage.
 #define DEVICE_ID "6609"
+#define HSV_MAX_HUE 359
+#define HSV_MAX_SATURATION 100
+#define HSV_MAX_VALUE 100
+// Identify erased flash cells without matching any valid HSV value.
+#define HSV_FREE_VALUE_MASK (~((uint32_t)HSV_MAX_HUE | ((uint32_t)HSV_MAX_SATURATION << 16) | ((uint32_t)HSV_MAX_VALUE << 24)))
 
 // MODE_NO_INPUT disables HSV changes until a mode is selected.
 typedef enum {
@@ -26,6 +33,7 @@ typedef enum {
 // Selected input mode and active-change state.
 static hsv_picker_mode_t m_mode;
 static bool m_changing;
+static volatile bool m_save_pending;
 
 // Button event handling.
 static void button_event_handler(btn_event_t event);
@@ -40,11 +48,15 @@ static void log_parameter(char const *event, lc_hsv_parameter_t parameter);
 
 // Initial device-specific HSV configuration.
 static uint16_t get_initial_hue(void);
+static bool load_saved_hsv(void);
+static void save_current_hsv(void);
 
 
 // Initialize dependencies and set the device-specific initial color.
 // Button processing is enabled separately by hsv_picker_start().
 bool hsv_picker_init(void) {
+    if (!nvm_log_init(HSV_FREE_VALUE_MASK)) return false;
+
     if (!timer_service_init()) return false;
 
     if (!lc_init()) return false;
@@ -52,9 +64,17 @@ bool hsv_picker_init(void) {
     // Button holds do not change HSV until an input mode is selected.
     m_mode = MODE_NO_INPUT;
     m_changing = false;
+    m_save_pending = false;
 
-    // Start with the device-specific Hue and full saturation/value.
-    lc_set_hsv(get_initial_hue(), 100, 100);
+    // Use the saved color when available; otherwise derive the default from DEVICE_ID.
+    if (!load_saved_hsv()) {
+        uint16_t hue = get_initial_hue();
+
+        lc_set_hsv(hue, HSV_MAX_SATURATION, HSV_MAX_VALUE);
+        LOG_INFO("No valid saved HSV color; using DEVICE_ID %s: H=%u S=%u V=%u",
+                 DEVICE_ID, (unsigned int)hue,
+                 (unsigned int)HSV_MAX_SATURATION, (unsigned int)HSV_MAX_VALUE);
+    }
 
     btn_init(button_event_handler);
 
@@ -66,6 +86,19 @@ void hsv_picker_start(void) {
     set_yellow_pattern(LC_YELLOW_OFF);
 
     btn_start();
+}
+
+
+// Process flash writes outside interrupt context.
+void hsv_picker_process(void) {
+    bool save_pending;
+
+    CRITICAL_REGION_ENTER();
+    save_pending = m_save_pending;
+    m_save_pending = false;
+    CRITICAL_REGION_EXIT();
+
+    if (save_pending) save_current_hsv();
 }
 
 // Route button events. Single-press is ignored; press/release control HSV,
@@ -140,6 +173,7 @@ static void mode_advance(void) {
         default:
             m_mode = MODE_NO_INPUT;
             set_yellow_pattern(LC_YELLOW_OFF);
+            m_save_pending = true;
             LOG_INFO("HSV-picker mode changed to NO_INPUT");
             break;
     }
@@ -189,4 +223,51 @@ static uint16_t get_initial_hue(void) {
         (DEVICE_ID[length - 1] - '0');
 
     return (uint16_t)(percent * 360 / 100);
+}
+
+// Restore the last saved HSV color when the record contains valid values.
+static bool load_saved_hsv(void) {
+    uint32_t data;
+    uint16_t hue;
+    uint8_t saturation;
+    uint8_t value;
+
+    if (!nvm_log_load(&data)) return false;
+
+    // Unpack the stored HSV components.
+    hue = (uint16_t)data;
+    saturation = (uint8_t)(data >> 16);
+    value = (uint8_t)(data >> 24);
+
+    if (hue >= 360 || saturation > HSV_MAX_SATURATION || value > HSV_MAX_VALUE)
+        return false;
+
+    lc_set_hsv(hue, saturation, value);
+    LOG_INFO("Restored HSV color: H=%u S=%u V=%u",
+             (unsigned int)hue, (unsigned int)saturation, (unsigned int)value);
+
+    return true;
+}
+
+// Append the current HSV color to the flash log.
+static void save_current_hsv(void) {
+    uint32_t data;
+    uint16_t hue;
+    uint8_t saturation;
+    uint8_t value;
+
+    lc_get_hsv(&hue, &saturation, &value);
+
+    // Pack HSV components into one word: H[15:0], S[23:16], V[31:24].
+    data = (uint32_t)hue |
+           ((uint32_t)saturation << 16) |
+           ((uint32_t)value << 24);
+
+    if (!nvm_log_save(data)) {
+        LOG_ERROR("Failed to save HSV color");
+        return;
+    }
+
+    LOG_INFO("Saved HSV color: H=%u S=%u V=%u",
+             (unsigned int)hue, (unsigned int)saturation, (unsigned int)value);
 }

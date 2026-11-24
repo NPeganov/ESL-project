@@ -31,10 +31,11 @@ SRC_FILES += \
   $(SDK_ROOT)/components/libraries/util/app_error.c \
   $(SDK_ROOT)/components/libraries/util/app_error_weak.c \
   $(SDK_ROOT)/components/libraries/strerror/nrf_strerror.c \
+  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_nvmc.c \
   $(PROJ_DIR)/main.c \
+  $(PROJ_DIR)/nvm_log/nvm_log.c \
   $(PROJ_DIR)/hsv_picker/hsv_picker.c \
   $(PROJ_DIR)/hardware/pwm/pwm.c \
-  $(PROJ_DIR)/hardware/leds_gpio/leds_gpio.c \
   $(PROJ_DIR)/leds/leds_pwm.c \
   $(PROJ_DIR)/hsv_picker/leds_control/leds_control.c \
   $(PROJ_DIR)/hsv_picker/leds_control/leds_control_hsv.c \

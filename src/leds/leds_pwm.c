@@ -23,19 +23,27 @@ static void rgb_apply(color_rgb_t rgb) {
     pwm_set(PWM_CHANNEL_3, rgb.blue);
 }
 
-// Initialize PWM for the four active-low LEDs.
+// Initialize PWM using the active level defined by the board.
 bool leds_pwm_init(void) {
     ASSERT(!m_initialized);
 
+    pwm_polarity_t led_polarity;
+
+    // Convert the board's active GPIO level to the corresponding PWM polarity.
+    if (LEDS_ACTIVE_STATE == 0)
+        led_polarity = PWM_POLARITY_ACTIVE_LOW;
+    else
+        led_polarity = PWM_POLARITY_ACTIVE_HIGH;
+
     pwm_config_t config;
     config.channels[0].pin = LED_1;
-    config.channels[0].polarity = PWM_POLARITY_ACTIVE_LOW;
+    config.channels[0].polarity = led_polarity;
     config.channels[1].pin = LED_2;
-    config.channels[1].polarity = PWM_POLARITY_ACTIVE_LOW;
+    config.channels[1].polarity = led_polarity;
     config.channels[2].pin = LED_3;
-    config.channels[2].polarity = PWM_POLARITY_ACTIVE_LOW;
+    config.channels[2].polarity = led_polarity;
     config.channels[3].pin = LED_4;
-    config.channels[3].polarity = PWM_POLARITY_ACTIVE_LOW;
+    config.channels[3].polarity = led_polarity;
 
     if (!pwm_init(&config)) return false;
 

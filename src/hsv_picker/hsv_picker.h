@@ -11,4 +11,7 @@ bool hsv_picker_init(void);
 // The yellow LED is turned off until the user selects an input mode.
 void hsv_picker_start(void);
 
+// Process deferred operations requested by button events.
+void hsv_picker_process(void);
+
 #endif

@@ -83,7 +83,7 @@ static void pwm_channels_configure(
 
         nrfx_config->output_pins[i] = config->channels[i].pin;
 
-        // Apply inversion for active-low physical outputs.
+        // Invert the pin output for channels whose active level is low.
         if (m_channel_active_low[i])
             nrfx_config->output_pins[i] |= NRFX_PWM_PIN_INVERTED;
     }
@@ -100,7 +100,7 @@ static uint16_t pwm_channel_compare_value(
     // In up-counting mode, compare value defines the inactive time.
     uint16_t compare_value = PWM_TOP_VALUE - active_ticks;
 
-    // The high bit selects the output polarity.
+    // Set the compare polarity bit for active-low channels.
     if (active_low)
         compare_value |= PWM_COMPARE_POLARITY_MASK;
 
