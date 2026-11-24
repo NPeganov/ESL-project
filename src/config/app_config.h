@@ -63,5 +63,6 @@
 #define NRFX_USBD_ENABLED 1
 #define NRFX_PWM_ENABLED 1
 #define NRFX_PWM0_ENABLED 1
+#define NRFX_NVMC_ENABLED 1
 
 #endif

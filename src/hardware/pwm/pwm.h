@@ -15,13 +15,13 @@ typedef enum {
     PWM_CHANNEL_3
 } pwm_channel_t;
 
-// Defines which GPIO level is considered active for a channel.
+// Selects whether the active portion of a channel's PWM signal is high or low.
 typedef enum {
     PWM_POLARITY_ACTIVE_HIGH,
     PWM_POLARITY_ACTIVE_LOW
 } pwm_polarity_t;
 
-// GPIO pin and active-level configuration for one PWM channel.
+// GPIO pin and active-signal polarity configuration for one PWM channel.
 typedef struct {
     uint8_t pin;
     pwm_polarity_t polarity;

@@ -16,8 +16,9 @@ int main(void) {
     // Enable user interaction.
     hsv_picker_start();
 
-    // Process deferred log messages and sleep until the next event.
+    // Process deferred flash writes and log messages, then sleep until an event.
     while (true) {
+        hsv_picker_process();
         log_process();
         __WFE();
     }
