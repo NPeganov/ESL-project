@@ -31,7 +31,6 @@ static bool m_double_press_pending;
 static uint32_t m_first_release_tick;
 
 static void button_state_changed(bool pressed);
-static void event_notify(btn_event_t event);
 static void double_press_timer_handler(void *p_context);
 
 void btn_init(btn_event_handler_t event_handler) {
@@ -70,13 +69,13 @@ static void button_state_changed(bool pressed) {
 
         LOG_INFO("Button event: PRESSED");
 
-        event_notify(BTN_EVENT_PRESS);
+        m_event_handler(BTN_EVENT_PRESS);
         return;
     }
 
     LOG_INFO("Button event: RELEASED");
 
-    event_notify(BTN_EVENT_RELEASE);
+    m_event_handler(BTN_EVENT_RELEASE);
 
     if (!m_press_started) return;
 
@@ -85,7 +84,7 @@ static void button_state_changed(bool pressed) {
     // Report every completed press-release cycle.
     LOG_INFO("Button event: SINGLE");
 
-    event_notify(BTN_EVENT_SINGLE_PRESS);
+    m_event_handler(BTN_EVENT_SINGLE_PRESS);
 
     now = app_timer_cnt_get();
 
@@ -99,7 +98,7 @@ static void button_state_changed(bool pressed) {
             // The second completed cycle occurred within the double-press interval.
             LOG_INFO("Button event: DOUBLE");
 
-            event_notify(BTN_EVENT_DOUBLE_PRESS);
+            m_event_handler(BTN_EVENT_DOUBLE_PRESS);
             return;
         }
 
@@ -116,9 +115,6 @@ static void button_state_changed(bool pressed) {
         NULL));
 }
 
-static void event_notify(btn_event_t event) {
-    m_event_handler(event);
-}
 
 static void double_press_timer_handler(void *p_context) {
     (void)p_context;
