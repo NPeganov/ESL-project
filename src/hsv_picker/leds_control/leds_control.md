@@ -22,11 +22,11 @@ LFCLK и app_timer должны быть подготовлены заранее
 ## Публичный API
 
 - `lc_set_hsv(h, s, v)` / `lc_get_hsv(...)` — установка и чтение цвета RGB LED в HSV.
-- `lc_start_hsv_change(parameter)` — запуск изменения H/S/V или возобновление того же приостановленного параметра.
+- `lc_start_hsv_change(parameter)` — запуск изменения H/S/V или возобновление того же приостановленного параметра; функция имеет тип `void`.
 - `lc_stop_hsv_change()` — пауза активного изменения с сохранением прогресса.
 - `lc_set_yellow_pattern(pattern)` — выбор OFF, SLOW_BLINK, FAST_BLINK или ON.
 
-Hue задаётся в градусах 0…359; Saturation и Value — 0…100%. Функции start/pattern возвращают false при неинициализированном модуле или недопустимом параметре.
+Hue задаётся в градусах 0…359; Saturation и Value — 0…100%. `lc_start_hsv_change()` ничего не возвращает; `lc_set_yellow_pattern()` возвращает false при неинициализированном модуле или недопустимом паттерне.
 
 ## Общий таймер
 

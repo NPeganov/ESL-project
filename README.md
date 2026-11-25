@@ -17,7 +17,7 @@ make dfu
 - `src/hsv_picker/` — пользовательские режимы HSV Picker.
 - `src/nvm_log/` — одностраничный журнал 32-битных записей в Application Data Area.
 - `src/hsv_picker/leds_control/` — изменение HSV и индикация жёлтым LED.
-- `src/btn/` — аппаратный debounce и логические события кнопки.
+- `src/btn/` — аппаратный debounce и логические события PRESS/RELEASE/SINGLE_PRESS/DOUBLE_PRESS/HOLD.
 - `src/leds/` — RGB/HSV и LED PWM abstraction.
 - `src/hardware/pwm/` — низкоуровневый nRF PWM driver.
 - `src/hardware/leds_gpio/` — независимый GPIO LED driver.
@@ -42,4 +42,4 @@ make dfu
 - [Timer service](src/timer_service/timer_service.md)
 - [Logging](src/log/log.md)
 
-Исходный код в этой ветке не является самостоятельной версией приложения; документация сверяется с актуальной реализацией приложения в ветке `develop`.
+Исходный код в этой ветке не является самостоятельной версией приложения; документация сверяется с актуальной реализацией приложения в ветке `main`.
