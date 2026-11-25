@@ -65,10 +65,10 @@ void lc_get_hsv(
 }
 
 // Starts changing the selected HSV parameter, or resumes it if paused.
-bool lc_start_hsv_change(lc_hsv_parameter_t parameter) {
-    if (!initialized) return false;
+void lc_start_hsv_change(lc_change_parameter_t parameter) {
+    if (!initialized) return;
 
-    return hsv_start(parameter);
+    hsv_start(parameter);
 }
 
 // Pauses the active HSV parameter change without resetting its progress.

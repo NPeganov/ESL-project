@@ -10,8 +10,7 @@
 void hsv_init(void);
 
 // Starts a parameter change or resumes the same paused parameter.
-// Returns false if the requested parameter is invalid.
-bool hsv_start(lc_hsv_parameter_t parameter);
+void hsv_start(lc_change_parameter_t parameter);
 
 // Pauses the active change while preserving its elapsed progress.
 void hsv_stop(void);

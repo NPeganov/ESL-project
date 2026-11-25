@@ -18,7 +18,7 @@ typedef enum {
 } change_state_t;
 
 static change_state_t change_state;             // Current change lifecycle state.
-static lc_hsv_parameter_t active_parameter;     // HSV component being changed.
+static lc_change_parameter_t active_parameter;  // HSV component being changed.
 static uint16_t start_value;                    // Component value when this run began.
 static uint32_t elapsed_ticks;                  // Active time accumulated, excluding pauses.
 static uint32_t last_tick;                      // Timestamp of the previous update.
@@ -29,20 +29,14 @@ void hsv_init(void) {
 }
 
 // Starts a new parameter change or resumes the same paused change.
-bool hsv_start(lc_hsv_parameter_t parameter) {
+void hsv_start(lc_change_parameter_t parameter) {
     uint16_t hue;
     uint8_t saturation;
     uint8_t value;
     uint32_t now;
 
-    if (parameter != LC_HUE &&
-        parameter != LC_SATURATION &&
-        parameter != LC_VALUE)
-        return false;
-
     // Repeated start requests must not reset an already running change.
-    if (change_state == CHANGE_RUNNING && active_parameter == parameter)
-        return true;
+    if (change_state == CHANGE_RUNNING && active_parameter == parameter) return;
 
     now = app_timer_cnt_get();
 
@@ -50,12 +44,11 @@ bool hsv_start(lc_hsv_parameter_t parameter) {
     if (change_state == CHANGE_PAUSED && active_parameter == parameter) {
         last_tick = now;
         change_state = CHANGE_RUNNING;
-        return true;
+        return;
     }
 
     // Apply the old parameter's elapsed time before switching to another one.
-    if (change_state == CHANGE_RUNNING)
-        hsv_process(now);
+    if (change_state == CHANGE_RUNNING) hsv_process(now);
 
     leds_pwm_get_hsv(&hue, &saturation, &value);
 
@@ -70,8 +63,6 @@ bool hsv_start(lc_hsv_parameter_t parameter) {
     elapsed_ticks = 0;
     last_tick = now;
     change_state = CHANGE_RUNNING;
-
-    return true;
 }
 
 // Applies the last elapsed interval, then pauses without losing cycle progress.

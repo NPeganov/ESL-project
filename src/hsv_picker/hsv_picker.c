@@ -10,9 +10,8 @@
 #include "nvm_log/nvm_log.h"
 #include "timer_service/timer_service.h"
 
-// Double press selects an HSV component; holding the button changes it.
+// DOUBLE_PRESS selects an HSV component; HOLD starts changing it until RELEASE.
 // The yellow LED indicates the selected mode.
-
 
 // Last two device-ID digits determine the initial Hue percentage.
 #define DEVICE_ID "6609"
@@ -22,7 +21,6 @@
 // Identify erased flash cells without matching any valid HSV value.
 #define HSV_FREE_VALUE_MASK (~((uint32_t)HSV_MAX_HUE | ((uint32_t)HSV_MAX_SATURATION << 16) | ((uint32_t)HSV_MAX_VALUE << 24)))
 
-// MODE_NO_INPUT disables HSV changes until a mode is selected.
 typedef enum {
     MODE_NO_INPUT,
     MODE_HUE,
@@ -32,19 +30,19 @@ typedef enum {
 
 // Selected input mode and active-change state.
 static hsv_picker_mode_t m_mode;
-static bool m_changing;
+static bool m_hsv_change_active;
+static lc_change_parameter_t m_active_parameter;
 static volatile bool m_save_pending;
 
 // Button event handling.
 static void button_event_handler(btn_event_t event);
-static void button_press(void);
+static void button_hold(void);
 static void button_release(void);
 
 // Input mode and logging helpers.
 static void mode_advance(void);
 static void set_yellow_pattern(lc_yellow_pattern_t pattern);
-static bool get_mode_parameter(lc_hsv_parameter_t *parameter);
-static void log_parameter(char const *event, lc_hsv_parameter_t parameter);
+static void log_parameter(char const *event, lc_change_parameter_t parameter);
 
 // Initial device-specific HSV configuration.
 static uint16_t get_initial_hue(void);
@@ -53,17 +51,15 @@ static void save_current_hsv(void);
 
 
 // Initialize dependencies and set the device-specific initial color.
-// Button processing is enabled separately by hsv_picker_start().
+// Button processing starts later, after the initial indication is prepared.
 bool hsv_picker_init(void) {
     if (!nvm_log_init(HSV_FREE_VALUE_MASK)) return false;
-
     if (!timer_service_init()) return false;
-
     if (!lc_init()) return false;
 
     // Button holds do not change HSV until an input mode is selected.
     m_mode = MODE_NO_INPUT;
-    m_changing = false;
+    m_hsv_change_active = false;
     m_save_pending = false;
 
     // Use the saved color when available; otherwise derive the default from DEVICE_ID.
@@ -76,16 +72,15 @@ bool hsv_picker_init(void) {
                  (unsigned int)HSV_MAX_SATURATION, (unsigned int)HSV_MAX_VALUE);
     }
 
-    btn_init(button_event_handler);
-
     return true;
 }
 
-// Turn off the mode indicator and enable button events.
+// Prepare the initial indication and then start button processing.
 void hsv_picker_start(void) {
     set_yellow_pattern(LC_YELLOW_OFF);
 
-    btn_start();
+    // Start the button only after the picker state and indication are ready.
+    btn_init(button_event_handler);
 }
 
 
@@ -101,43 +96,50 @@ void hsv_picker_process(void) {
     if (save_pending) save_current_hsv();
 }
 
-// Route button events. Single-press is ignored; press/release control HSV,
-// and double-press selects the next input mode. Logging is deferred.
+// Route button events. Hold starts HSV changes, release finishes them,
+// and double-press selects the next input mode. Single-press is ignored.
+// Logging is deferred.
 static void button_event_handler(btn_event_t event) {
     switch (event) {
-        case BTN_EVENT_PRESS: button_press(); break;
+        case BTN_EVENT_HOLD: button_hold(); break;
         case BTN_EVENT_RELEASE: button_release(); break;
         case BTN_EVENT_DOUBLE_PRESS: mode_advance(); break;
+        case BTN_EVENT_PRESS:
         case BTN_EVENT_SINGLE_PRESS:
         default: break;
     }
 }
 
-// Start changing the selected component unless a change is active or no
-// input mode is selected. The mode cannot advance before this press releases.
-static void button_press(void) {
-    lc_hsv_parameter_t parameter;
+// Start changing the selected component unless a change is already active
+// or no input mode is selected.
+static void button_hold(void) {
+    // Ignore repeated holds and holds in NO_INPUT mode.
+    if (m_hsv_change_active || m_mode == MODE_NO_INPUT) return;
 
-    if (m_changing || !get_mode_parameter(&parameter)) return;
+    lc_change_parameter_t parameter = LC_HUE;
 
-    if (!lc_start_hsv_change(parameter)) {
-        LOG_ERROR("Failed to start HSV parameter change");
-        return;
+    switch (m_mode) {
+        case MODE_NO_INPUT: return;
+        case MODE_HUE: parameter = LC_HUE; break;
+        case MODE_SATURATION: parameter = LC_SATURATION; break;
+        case MODE_BRIGHTNESS: parameter = LC_VALUE; break;
     }
 
-    m_changing = true;
-    log_parameter("started", parameter);
+    lc_start_hsv_change(parameter);
+
+    m_active_parameter = parameter;
+    m_hsv_change_active = true;
+    log_parameter("started", m_active_parameter);
 }
 
-// Pause the active change. Ignore releases that did not start one.
+// Handle button release and stop any active HSV change.
 static void button_release(void) {
-    lc_hsv_parameter_t parameter;
-
-    if (!m_changing || !get_mode_parameter(&parameter)) return;
+    // Nothing to do if no HSV change is active.
+    if (!m_hsv_change_active) return;
 
     lc_stop_hsv_change();
-    m_changing = false;
-    log_parameter("finished", parameter);
+    m_hsv_change_active = false;
+    log_parameter("finished", m_active_parameter);
 }
 
 // Apply a valid pattern after initialization; failure means an internal
@@ -179,20 +181,9 @@ static void mode_advance(void) {
     }
 }
 
-// Return the HSV parameter for the current mode, or false for NO_INPUT.
-static bool get_mode_parameter(lc_hsv_parameter_t *parameter) {
-    switch (m_mode) {
-        case MODE_HUE: *parameter = LC_HUE; return true;
-        case MODE_SATURATION: *parameter = LC_SATURATION; return true;
-        case MODE_BRIGHTNESS: *parameter = LC_VALUE; return true;
-        case MODE_NO_INPUT:
-        default: return false;
-    }
-}
-
 // Log the selected component's value when its change starts or finishes.
 // BRIGHTNESS is the user-facing name for HSV Value.
-static void log_parameter(char const *event, lc_hsv_parameter_t parameter) {
+static void log_parameter(char const *event, lc_change_parameter_t parameter) {
     uint16_t hue;
     uint8_t saturation;
     uint8_t value;

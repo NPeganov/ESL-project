@@ -9,7 +9,7 @@ typedef enum {
     LC_HUE,
     LC_SATURATION,
     LC_VALUE
-} lc_hsv_parameter_t;
+} lc_change_parameter_t;
 
 // Yellow LED indication patterns used to show the current picker mode.
 typedef enum {
@@ -37,8 +37,7 @@ void lc_get_hsv(
     uint8_t *value);        // Receives value, 0..100.
 
 // Starts changing the selected component, or resumes it if previously paused.
-// Returns false if the module is not initialized or the parameter is invalid.
-bool lc_start_hsv_change(lc_hsv_parameter_t parameter);
+void lc_start_hsv_change(lc_change_parameter_t parameter);
 
 // Pauses the active HSV change. Starting the same component resumes its progress.
 void lc_stop_hsv_change(void);
