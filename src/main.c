@@ -73,7 +73,8 @@ static void usb_event_handler(app_usbd_class_inst_t const * p_inst,
             ret_code_t ret = app_usbd_cdc_acm_read(&usb_cdc_acm,
                                                    m_rx_buffer,
                                                    CDC_ACM_READ_SIZE);
-            APP_ERROR_CHECK(ret);
+            if (ret != NRF_SUCCESS && ret != NRF_ERROR_IO_PENDING)
+                APP_ERROR_CHECK(ret);
             break;
         }
 
@@ -100,7 +101,8 @@ static void usb_event_handler(app_usbd_class_inst_t const * p_inst,
                                             CDC_ACM_READ_SIZE);
             } while (ret == NRF_SUCCESS);
 
-            APP_ERROR_CHECK(ret);
+            if (ret != NRF_ERROR_IO_PENDING)
+                APP_ERROR_CHECK(ret);
             break;
         }
 
