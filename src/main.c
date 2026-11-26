@@ -49,8 +49,8 @@ static void usb_event_handler(app_usbd_class_inst_t const * p_inst,
             ret_code_t ret;
 
             do {
-                if (m_rx_buffer[0] == '\\r' || m_rx_buffer[0] == '\\n')
-                    ret = app_usbd_cdc_acm_write(&usb_cdc_acm, "\\r\\n", 2);
+                if (m_rx_buffer[0] == '\r' || m_rx_buffer[0] == '\n')
+                    ret = app_usbd_cdc_acm_write(&usb_cdc_acm, "\r\n", 2);
                 else
                     ret = app_usbd_cdc_acm_write(&usb_cdc_acm,
                                                  m_rx_buffer,
