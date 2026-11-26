@@ -89,9 +89,9 @@ static void usb_event_handler(app_usbd_class_inst_t const * p_inst,
             ret_code_t ret;
 
             do {
-                if (m_rx_buffer[0] == '\\r' || m_rx_buffer[0] == '\\n') {
-                    tx_enqueue('\\r');
-                    tx_enqueue('\\n');
+                if (m_rx_buffer[0] == '\r' || m_rx_buffer[0] == '\n') {
+                    tx_enqueue('\r');
+                    tx_enqueue('\n');
                 }
                 else
                     tx_enqueue(m_rx_buffer[0]);
