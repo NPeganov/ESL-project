@@ -7,15 +7,12 @@
 #include "cli.h"
 
 static void cli_receive(char const * line) {
-    uint8_t const * data = (uint8_t const *)line;
+    uint32_t size = 0;
 
-    cli_input_write(data, 0);
+    while (line[size] != '\0')
+        size++;
 
-    while (*line != '\0') {
-        line++;
-    }
-
-    cli_input_write(data, (uint32_t)(line - (char const *)data));
+    cli_input_write((uint8_t const *)line, size);
     cli_input_write((uint8_t const *)"\r\n", 2);
 }
 
