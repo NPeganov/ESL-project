@@ -3,7 +3,7 @@
 
 #include "app_timer.h"
 
-#include "../../leds/leds_pwm.h"
+#include "../../tools/leds/leds_pwm.h"
 #include "leds_control_hsv.h"
 
 // Time for one complete Hue rotation and for one Saturation/Value half-cycle.

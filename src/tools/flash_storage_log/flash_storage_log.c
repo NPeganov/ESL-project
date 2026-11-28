@@ -4,12 +4,12 @@
 
 #include "nrfx_nvmc.h"
 
-#include "nvm_log.h"
+#include "flash_storage_log.h"
 
-#define NVM_LOG_PAGE_ADDRESS 0xDD000          // First Application Data Area page.
-#define NVM_LOG_PAGE_SIZE 4096                 // nRF52840 flash page size.
-#define NVM_LOG_WORD_SIZE sizeof(uint32_t)     // NVMC programming unit.
-#define NVM_LOG_WORD_COUNT (NVM_LOG_PAGE_SIZE / NVM_LOG_WORD_SIZE)
+#define FLASH_STORAGE_LOG_PAGE_ADDRESS 0xDD000          // First Application Data Area page.
+#define FLASH_STORAGE_LOG_PAGE_SIZE 4096                 // nRF52840 flash page size.
+#define FLASH_STORAGE_LOG_WORD_SIZE sizeof(uint32_t)     // NVMC programming unit.
+#define FLASH_STORAGE_LOG_WORD_COUNT (FLASH_STORAGE_LOG_PAGE_SIZE / FLASH_STORAGE_LOG_WORD_SIZE)
 
 static uint32_t m_free_value_mask;             // Mask used to identify an unset cell.
 static size_t m_used_cell_count;               // Number of occupied cells in the log page.
@@ -23,7 +23,7 @@ static bool is_cell_value_unset(uint32_t value);
 static bool write_cell(uint32_t address, uint32_t value);
 
 // Initialize the log and count the occupied cells.
-bool nvm_log_init(uint32_t free_value_mask) {
+bool flash_storage_log_init(uint32_t free_value_mask) {
     if (m_initialized) return false;
 
     m_free_value_mask = free_value_mask;
@@ -31,7 +31,7 @@ bool nvm_log_init(uint32_t free_value_mask) {
 
     // Log entries are stored consecutively from the beginning of the page.
     // The first unset cell marks the end of the existing log.
-    for (size_t i = 0; i < NVM_LOG_WORD_COUNT; i++) {
+    for (size_t i = 0; i < FLASH_STORAGE_LOG_WORD_COUNT; i++) {
         if (is_cell_value_unset(get_cell_value_by_index(i)))
             break;
 
@@ -46,7 +46,7 @@ bool nvm_log_init(uint32_t free_value_mask) {
 }
 
 // Append one value to the next free cell.
-bool nvm_log_save(uint32_t data) {
+bool flash_storage_log_save(uint32_t data) {
     uint32_t address;
 
     // Values matching the unset-cell pattern are reserved and cannot be saved.
@@ -56,8 +56,8 @@ bool nvm_log_save(uint32_t data) {
 
     // Reuse the page from the beginning when every cell has been occupied.
     // Erasing the page also removes the previously saved entries.
-    if (m_used_cell_count >= NVM_LOG_WORD_COUNT) {
-        if (nrfx_nvmc_page_erase(NVM_LOG_PAGE_ADDRESS) != NRFX_SUCCESS)
+    if (m_used_cell_count >= FLASH_STORAGE_LOG_WORD_COUNT) {
+        if (nrfx_nvmc_page_erase(FLASH_STORAGE_LOG_PAGE_ADDRESS) != NRFX_SUCCESS)
             return false;
 
         m_used_cell_count = 0;
@@ -78,7 +78,7 @@ bool nvm_log_save(uint32_t data) {
 }
 
 // Load the most recently saved value.
-bool nvm_log_load(uint32_t *data) {
+bool flash_storage_log_load(uint32_t *data) {
     if (!m_initialized || data == NULL || !m_has_latest)
         return false;
 
@@ -89,7 +89,7 @@ bool nvm_log_load(uint32_t *data) {
 
 // Calculate the flash address of a cell from its zero-based index.
 static uint32_t get_cell_address_by_index(size_t index) {
-    return NVM_LOG_PAGE_ADDRESS + index * NVM_LOG_WORD_SIZE;
+    return FLASH_STORAGE_LOG_PAGE_ADDRESS + index * FLASH_STORAGE_LOG_WORD_SIZE;
 }
 
 // Read a cell directly from memory-mapped flash.

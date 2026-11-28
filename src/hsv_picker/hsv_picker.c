@@ -4,11 +4,11 @@
 #include "app_error.h"
 #include "app_util_platform.h"
 
-#include "btn/btn.h"
+#include "tools/btn/btn.h"
 #include "leds_control/leds_control.h"
-#include "log/log.h"
-#include "nvm_log/nvm_log.h"
-#include "timer_service/timer_service.h"
+#include "tools/usb_logger/usb_logger.h"
+#include "tools/flash_storage_log/flash_storage_log.h"
+#include "tools/timer_service/timer_service.h"
 
 // DOUBLE_PRESS selects an HSV component; HOLD starts changing it until RELEASE.
 // The yellow LED indicates the selected mode.
@@ -53,7 +53,7 @@ static void save_current_hsv(void);
 // Initialize dependencies and set the device-specific initial color.
 // Button processing starts later, after the initial indication is prepared.
 bool hsv_picker_init(void) {
-    if (!nvm_log_init(HSV_FREE_VALUE_MASK)) return false;
+    if (!flash_storage_log_init(HSV_FREE_VALUE_MASK)) return false;
     if (!timer_service_init()) return false;
     if (!lc_init()) return false;
 
@@ -223,7 +223,7 @@ static bool load_saved_hsv(void) {
     uint8_t saturation;
     uint8_t value;
 
-    if (!nvm_log_load(&data)) return false;
+    if (!flash_storage_log_load(&data)) return false;
 
     // Unpack the stored HSV components.
     hue = (uint16_t)data;
@@ -254,7 +254,7 @@ static void save_current_hsv(void) {
            ((uint32_t)saturation << 16) |
            ((uint32_t)value << 24);
 
-    if (!nvm_log_save(data)) {
+    if (!flash_storage_log_save(data)) {
         LOG_ERROR("Failed to save HSV color");
         return;
     }

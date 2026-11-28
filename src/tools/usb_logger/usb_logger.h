@@ -1,14 +1,14 @@
-#ifndef _LOG_H_
-#define _LOG_H_
+#ifndef _USB_LOGGER_H_
+#define _USB_LOGGER_H_
 
 #include "nrf_log.h"
 
 // Initializes the logger and all enabled backends.
-void log_init(void);
+void usb_logger_init(void);
 
 // Processes USB events and pending deferred log messages.
 // Must be called regularly from the main loop.
-void log_process(void);
+void usb_logger_process(void);
 
 // Application logging interface.
 #define LOG_INFO(...)    NRF_LOG_INFO(__VA_ARGS__)

@@ -5,7 +5,7 @@
 #include "nrf_error.h"
 
 #include "leds_control.h"
-#include "../../leds/leds_pwm.h"
+#include "../../tools/leds/leds_pwm.h"
 #include "leds_control_hsv.h"
 #include "leds_control_yellow.h"
 
