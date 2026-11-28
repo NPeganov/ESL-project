@@ -11,6 +11,7 @@
 
 #include "usb_port.h"
 
+// Interfaces and endpoints are reserved for this CDC ACM instance.
 #define USB_PORT_COMM_INTERFACE  2
 #define USB_PORT_COMM_EPIN       NRF_DRV_USBD_EPIN3
 
@@ -53,6 +54,8 @@ static void tx_start(void) {
     size_t size = USB_PORT_TX_QUEUE_SIZE - m_tx_queue_tail;
     if (size > m_tx_queue_count)
         size = m_tx_queue_count;
+    if (size > USB_PORT_TX_BUFFER_SIZE)
+        size = USB_PORT_TX_BUFFER_SIZE;
 
     memcpy(m_tx_buffer, &m_tx_queue[m_tx_queue_tail], size);
 
@@ -62,6 +65,7 @@ static void tx_start(void) {
 
     APP_ERROR_CHECK(ret);
 
+    // The queue space is released once the data has been copied to the active TX buffer.
     m_tx_queue_tail = (m_tx_queue_tail + size) % USB_PORT_TX_QUEUE_SIZE;
     m_tx_queue_count -= size;
     m_tx_busy = true;
@@ -97,12 +101,21 @@ static void usb_event_handler(app_usbd_class_inst_t const * p_inst,
                               app_usbd_cdc_acm_user_event_t event) {
     switch (event) {
         case APP_USBD_CDC_ACM_USER_EVT_PORT_OPEN:
-            if (!m_connected) {
-                m_connected = true;
+            // A USB bus reset clears the CDC state without sending PORT_CLOSE.
+            // A repeated open therefore starts a new session and abandons old TX data.
+            if (m_connected) {
+                m_connected = false;
+                tx_queue_reset();
                 if (m_state_handler != NULL)
-                    m_state_handler(true);
+                    m_state_handler(false);
             }
+
+            m_connected = true;
+            if (m_state_handler != NULL)
+                m_state_handler(true);
+
             rx_read();
+            tx_start();
             break;
 
         case APP_USBD_CDC_ACM_USER_EVT_PORT_CLOSE:
