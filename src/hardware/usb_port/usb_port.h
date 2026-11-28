@@ -8,7 +8,8 @@
 // Called with received data valid only for the duration of the callback.
 typedef void (*usb_port_rx_handler_t)(uint8_t const * data, size_t size);
 
-// Called when the host opens or closes the port.
+// Called when the host opens or closes the CDC port.
+// A bus reset is reported as close/open when the host reopens the port.
 typedef void (*usb_port_state_handler_t)(bool connected);
 
 // Initializes the USB CDC ACM port.

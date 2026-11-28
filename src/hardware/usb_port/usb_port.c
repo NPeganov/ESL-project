@@ -30,7 +30,7 @@ static size_t m_tx_queue_head;
 static size_t m_tx_queue_tail;
 static size_t m_tx_queue_count;
 static bool m_initialized;
-static bool m_connected;
+static bool m_port_open;
 static bool m_tx_busy;
 static usb_port_rx_handler_t m_rx_handler;
 static usb_port_state_handler_t m_state_handler;
@@ -48,26 +48,26 @@ APP_USBD_CDC_ACM_GLOBAL_DEF(usb_cdc_acm,
                             APP_USBD_CDC_COMM_PROTOCOL_NONE);
 
 static void tx_start(void) {
-    if (!m_connected || m_tx_busy || m_tx_queue_count == 0)
+    if (!m_port_open || m_tx_busy || m_tx_queue_count == 0)
         return;
 
-    size_t size = USB_PORT_TX_QUEUE_SIZE - m_tx_queue_tail;
-    if (size > m_tx_queue_count)
-        size = m_tx_queue_count;
-    if (size > USB_PORT_TX_BUFFER_SIZE)
-        size = USB_PORT_TX_BUFFER_SIZE;
+    size_t chunk_size = USB_PORT_TX_QUEUE_SIZE - m_tx_queue_tail;
+    if (chunk_size > m_tx_queue_count)
+        chunk_size = m_tx_queue_count;
+    if (chunk_size > USB_PORT_TX_BUFFER_SIZE)
+        chunk_size = USB_PORT_TX_BUFFER_SIZE;
 
-    memcpy(m_tx_buffer, &m_tx_queue[m_tx_queue_tail], size);
+    memcpy(m_tx_buffer, &m_tx_queue[m_tx_queue_tail], chunk_size);
 
-    ret_code_t ret = app_usbd_cdc_acm_write(&usb_cdc_acm, m_tx_buffer, size);
+    ret_code_t ret = app_usbd_cdc_acm_write(&usb_cdc_acm, m_tx_buffer, chunk_size);
     if (ret == NRF_ERROR_INVALID_STATE)
         return;
 
     APP_ERROR_CHECK(ret);
 
-    // The queue space is released once the data has been copied to the active TX buffer.
-    m_tx_queue_tail = (m_tx_queue_tail + size) % USB_PORT_TX_QUEUE_SIZE;
-    m_tx_queue_count -= size;
+    // Queue space is released once the data has been copied to the active TX buffer.
+    m_tx_queue_tail = (m_tx_queue_tail + chunk_size) % USB_PORT_TX_QUEUE_SIZE;
+    m_tx_queue_count -= chunk_size;
     m_tx_busy = true;
 }
 
@@ -90,27 +90,27 @@ static void rx_read(void) {
         APP_ERROR_CHECK(ret);
 }
 
-static void tx_queue_reset(void) {
+static void tx_state_reset(void) {
     m_tx_queue_head = 0;
     m_tx_queue_tail = 0;
     m_tx_queue_count = 0;
     m_tx_busy = false;
 }
 
-static void usb_event_handler(app_usbd_class_inst_t const * p_inst,
+static void usb_event_handler(app_usbd_class_inst_t const *,
                               app_usbd_cdc_acm_user_event_t event) {
     switch (event) {
         case APP_USBD_CDC_ACM_USER_EVT_PORT_OPEN:
-            // A USB bus reset clears the CDC state without sending PORT_CLOSE.
-            // A repeated open therefore starts a new session and abandons old TX data.
-            if (m_connected) {
-                m_connected = false;
-                tx_queue_reset();
+            // A bus reset clears DTR without sending PORT_CLOSE.
+            // The host's next DTR assertion generates another PORT_OPEN.
+            if (m_port_open) {
+                m_port_open = false;
+                tx_state_reset();
                 if (m_state_handler != NULL)
                     m_state_handler(false);
             }
 
-            m_connected = true;
+            m_port_open = true;
             if (m_state_handler != NULL)
                 m_state_handler(true);
 
@@ -119,14 +119,14 @@ static void usb_event_handler(app_usbd_class_inst_t const * p_inst,
             break;
 
         case APP_USBD_CDC_ACM_USER_EVT_PORT_CLOSE:
-            if (m_connected) {
-                m_connected = false;
-                tx_queue_reset();
+            if (m_port_open) {
+                m_port_open = false;
+                tx_state_reset();
                 if (m_state_handler != NULL)
                     m_state_handler(false);
             }
             else
-                tx_queue_reset();
+                tx_state_reset();
             break;
 
         case APP_USBD_CDC_ACM_USER_EVT_RX_DONE: {
@@ -167,7 +167,7 @@ bool usb_port_init(usb_port_rx_handler_t rx_handler,
 }
 
 bool usb_port_write(uint8_t const * data, size_t size) {
-    if (!m_initialized || !m_connected || data == NULL || size == 0 ||
+    if (!m_initialized || !m_port_open || data == NULL || size == 0 ||
         size > USB_PORT_TX_QUEUE_SIZE - m_tx_queue_count)
         return false;
 
