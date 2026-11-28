@@ -1,7 +1,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "usb_port/usb_port.h"
+#include "hardware/usb_port/usb_port.h"
 
 #include "cli_input.h"
 

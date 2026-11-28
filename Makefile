@@ -33,9 +33,9 @@ SRC_FILES += \
   $(SDK_ROOT)/components/libraries/strerror/nrf_strerror.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_nvmc.c \
   $(PROJ_DIR)/main.c \
-  $(PROJ_DIR)/usb_port/usb_port.c \
+  $(PROJ_DIR)/hardware/usb_port/usb_port.c \
   $(PROJ_DIR)/cli_input/cli_input.c \
-  $(PROJ_DIR)/cli/cli.c \
+  $(PROJ_DIR)/hsv_picker_cli/hsv_picker_cli.c \
   $(PROJ_DIR)/nvm_log/nvm_log.c \
   $(PROJ_DIR)/hsv_picker/hsv_picker.c \
   $(PROJ_DIR)/hardware/pwm/pwm.c \

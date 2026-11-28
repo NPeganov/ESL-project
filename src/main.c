@@ -3,15 +3,15 @@
 
 #include "app_error.h"
 
-#include "cli/cli.h"
 #include "hsv_picker/hsv_picker.h"
+#include "hsv_picker_cli/hsv_picker_cli.h"
 #include "log/log.h"
 
 int main(void) {
     log_init();
 
-    // Initialize the CLI and its USB transport.
-    if (!cli_init())
+    // Initialize the HSV Picker command-line interface.
+    if (!hsv_picker_cli_init())
         APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
 
     // Initialize the HSV Picker and prepare its initial indication.
