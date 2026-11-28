@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "hardware/usb_port/usb_port.h"
@@ -8,7 +9,7 @@
 #define CLI_INPUT_BUFFER_SIZE 64
 
 static char m_line[CLI_INPUT_BUFFER_SIZE];
-static uint32_t m_line_size;
+static size_t m_line_size;
 static bool m_ignore_lf;
 static cli_input_line_handler_t m_line_handler;
 
@@ -18,7 +19,7 @@ void cli_input_init(cli_input_line_handler_t line_handler) {
     m_ignore_lf = false;
 }
 
-void cli_input_receive(uint8_t byte) {
+static void cli_input_receive_byte(uint8_t byte) {
     if (byte == '\r' || byte == '\n') {
         if (byte == '\n' && m_ignore_lf)
             return;
@@ -40,6 +41,11 @@ void cli_input_receive(uint8_t byte) {
     }
 }
 
-void cli_input_write(uint8_t const * data, uint32_t size) {
+void cli_input_receive(uint8_t const * data, size_t size) {
+    for (size_t i = 0; i < size; i++)
+        cli_input_receive_byte(data[i]);
+}
+
+void cli_input_write(uint8_t const * data, size_t size) {
     usb_port_write(data, size);
 }

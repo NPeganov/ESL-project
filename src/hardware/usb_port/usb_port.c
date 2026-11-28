@@ -1,5 +1,7 @@
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "app_error.h"
 #include "nrf_drv_usbd.h"
@@ -16,17 +18,21 @@
 #define USB_PORT_DATA_EPIN       NRF_DRV_USBD_EPIN4
 #define USB_PORT_DATA_EPOUT      NRF_DRV_USBD_EPOUT4
 
-#define USB_PORT_READ_SIZE       1
+#define USB_PORT_RX_BUFFER_SIZE  64
+#define USB_PORT_TX_BUFFER_SIZE  64
 #define USB_PORT_TX_QUEUE_SIZE   64
 
-static uint8_t m_rx_buffer[USB_PORT_READ_SIZE];
-static uint8_t m_tx_buffer;
+static uint8_t m_rx_buffer[USB_PORT_RX_BUFFER_SIZE];
+static uint8_t m_tx_buffer[USB_PORT_TX_BUFFER_SIZE];
 static uint8_t m_tx_queue[USB_PORT_TX_QUEUE_SIZE];
-static uint8_t m_tx_queue_head;
-static uint8_t m_tx_queue_tail;
-static uint8_t m_tx_queue_count;
+static size_t m_tx_queue_head;
+static size_t m_tx_queue_tail;
+static size_t m_tx_queue_count;
+static bool m_initialized;
+static bool m_connected;
 static bool m_tx_busy;
 static usb_port_rx_handler_t m_rx_handler;
+static usb_port_state_handler_t m_state_handler;
 
 static void usb_event_handler(app_usbd_class_inst_t const * p_inst,
                               app_usbd_cdc_acm_user_event_t event);
@@ -41,62 +47,80 @@ APP_USBD_CDC_ACM_GLOBAL_DEF(usb_cdc_acm,
                             APP_USBD_CDC_COMM_PROTOCOL_NONE);
 
 static void tx_start(void) {
-    if (m_tx_busy || m_tx_queue_count == 0)
+    if (!m_connected || m_tx_busy || m_tx_queue_count == 0)
         return;
 
-    m_tx_buffer = m_tx_queue[m_tx_queue_tail];
+    size_t size = USB_PORT_TX_QUEUE_SIZE - m_tx_queue_tail;
+    if (size > m_tx_queue_count)
+        size = m_tx_queue_count;
 
-    ret_code_t ret = app_usbd_cdc_acm_write(&usb_cdc_acm, &m_tx_buffer, 1);
+    memcpy(m_tx_buffer, &m_tx_queue[m_tx_queue_tail], size);
+
+    ret_code_t ret = app_usbd_cdc_acm_write(&usb_cdc_acm, m_tx_buffer, size);
+    if (ret == NRF_ERROR_INVALID_STATE)
+        return;
+
     APP_ERROR_CHECK(ret);
 
-    m_tx_queue_tail = (m_tx_queue_tail + 1) % USB_PORT_TX_QUEUE_SIZE;
-    m_tx_queue_count--;
+    m_tx_queue_tail = (m_tx_queue_tail + size) % USB_PORT_TX_QUEUE_SIZE;
+    m_tx_queue_count -= size;
     m_tx_busy = true;
 }
 
-static void tx_enqueue(uint8_t byte) {
-    if (m_tx_queue_count == USB_PORT_TX_QUEUE_SIZE)
-        APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
+static void rx_read(void) {
+    ret_code_t ret;
 
-    m_tx_queue[m_tx_queue_head] = byte;
-    m_tx_queue_head = (m_tx_queue_head + 1) % USB_PORT_TX_QUEUE_SIZE;
-    m_tx_queue_count++;
+    do {
+        ret = app_usbd_cdc_acm_read_any(&usb_cdc_acm,
+                                        m_rx_buffer,
+                                        sizeof(m_rx_buffer));
 
-    tx_start();
+        if (ret == NRF_SUCCESS) {
+            size_t size = app_usbd_cdc_acm_rx_size(&usb_cdc_acm);
+            if (size > 0)
+                m_rx_handler(m_rx_buffer, size);
+        }
+    } while (ret == NRF_SUCCESS);
+
+    if (ret != NRF_ERROR_IO_PENDING)
+        APP_ERROR_CHECK(ret);
+}
+
+static void tx_queue_reset(void) {
+    m_tx_queue_head = 0;
+    m_tx_queue_tail = 0;
+    m_tx_queue_count = 0;
+    m_tx_busy = false;
 }
 
 static void usb_event_handler(app_usbd_class_inst_t const * p_inst,
                               app_usbd_cdc_acm_user_event_t event) {
     switch (event) {
-        case APP_USBD_CDC_ACM_USER_EVT_PORT_OPEN: {
-            ret_code_t ret = app_usbd_cdc_acm_read(&usb_cdc_acm,
-                                                   m_rx_buffer,
-                                                   USB_PORT_READ_SIZE);
-            if (ret != NRF_SUCCESS && ret != NRF_ERROR_IO_PENDING)
-                APP_ERROR_CHECK(ret);
+        case APP_USBD_CDC_ACM_USER_EVT_PORT_OPEN:
+            if (!m_connected) {
+                m_connected = true;
+                if (m_state_handler != NULL)
+                    m_state_handler(true);
+            }
+            rx_read();
             break;
-        }
 
         case APP_USBD_CDC_ACM_USER_EVT_PORT_CLOSE:
-            m_tx_busy = false;
-            m_tx_queue_head = 0;
-            m_tx_queue_tail = 0;
-            m_tx_queue_count = 0;
+            if (m_connected) {
+                m_connected = false;
+                tx_queue_reset();
+                if (m_state_handler != NULL)
+                    m_state_handler(false);
+            }
+            else
+                tx_queue_reset();
             break;
 
         case APP_USBD_CDC_ACM_USER_EVT_RX_DONE: {
-            ret_code_t ret;
-
-            do {
-                m_rx_handler(m_rx_buffer[0]);
-
-                ret = app_usbd_cdc_acm_read(&usb_cdc_acm,
-                                            m_rx_buffer,
-                                            USB_PORT_READ_SIZE);
-            } while (ret == NRF_SUCCESS);
-
-            if (ret != NRF_ERROR_IO_PENDING)
-                APP_ERROR_CHECK(ret);
+            size_t size = app_usbd_cdc_acm_rx_size(&usb_cdc_acm);
+            if (size > 0)
+                m_rx_handler(m_rx_buffer, size);
+            rx_read();
             break;
         }
 
@@ -110,17 +134,37 @@ static void usb_event_handler(app_usbd_class_inst_t const * p_inst,
     }
 }
 
-bool usb_port_init(usb_port_rx_handler_t rx_handler) {
+bool usb_port_init(usb_port_rx_handler_t rx_handler,
+                   usb_port_state_handler_t state_handler) {
+    if (m_initialized || rx_handler == NULL)
+        return false;
+
     m_rx_handler = rx_handler;
+    m_state_handler = state_handler;
 
     app_usbd_class_inst_t const * class_cdc_acm =
         app_usbd_cdc_acm_class_inst_get(&usb_cdc_acm);
 
     ret_code_t ret = app_usbd_class_append(class_cdc_acm);
-    return ret == NRF_SUCCESS;
+    if (ret != NRF_SUCCESS)
+        return false;
+
+    m_initialized = true;
+    return true;
 }
 
-void usb_port_write(uint8_t const * data, uint32_t size) {
-    for (uint32_t i = 0; i < size; i++)
-        tx_enqueue(data[i]);
+bool usb_port_write(uint8_t const * data, size_t size) {
+    if (!m_initialized || !m_connected || data == NULL || size == 0 ||
+        size > USB_PORT_TX_QUEUE_SIZE - m_tx_queue_count)
+        return false;
+
+    for (size_t i = 0; i < size; i++) {
+        m_tx_queue[m_tx_queue_head] = data[i];
+        m_tx_queue_head = (m_tx_queue_head + 1) % USB_PORT_TX_QUEUE_SIZE;
+    }
+
+    m_tx_queue_count += size;
+    tx_start();
+
+    return true;
 }

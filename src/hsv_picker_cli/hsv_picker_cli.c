@@ -11,5 +11,5 @@ static void cli_receive(char const * line) {
 
 bool hsv_picker_cli_init(void) {
     cli_input_init(cli_receive);
-    return usb_port_init(cli_input_receive);
+    return usb_port_init(cli_input_receive, NULL);
 }
