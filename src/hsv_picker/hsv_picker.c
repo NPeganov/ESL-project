@@ -4,7 +4,7 @@
 #include "app_error.h"
 #include "app_util_platform.h"
 
-#include "btn/btn.h"
+#include "tools/btn/btn.h"
 #include "leds_control/leds_control.h"
 #include "tools/usb_logger/usb_logger.h"
 #include "tools/flash_storage_log/flash_storage_log.h"

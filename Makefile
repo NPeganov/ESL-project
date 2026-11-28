@@ -45,8 +45,8 @@ SRC_FILES += \
   $(PROJ_DIR)/hsv_picker/leds_control/leds_control_yellow.c \
   $(PROJ_DIR)/tools/leds/internal/color.c \
   $(PROJ_DIR)/tools/timer_service/timer_service.c \
-  $(PROJ_DIR)/btn/btn.c \
-  $(PROJ_DIR)/btn/btn_hw.c \
+  $(PROJ_DIR)/tools/btn/btn.c \
+  $(PROJ_DIR)/tools/btn/btn_hw.c \
   $(PROJ_DIR)/tools/usb_logger/usb_logger.c \
   $(SDK_ROOT)/components/libraries/usbd/app_usbd.c \
   $(SDK_ROOT)/components/libraries/usbd/app_usbd_core.c \
