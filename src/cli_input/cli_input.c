@@ -32,8 +32,10 @@ void cli_input_receive(uint8_t byte) {
 
     m_ignore_lf = false;
 
-    if (m_line_size < CLI_INPUT_BUFFER_SIZE - 1)
+    if (m_line_size < CLI_INPUT_BUFFER_SIZE - 1) {
         m_line[m_line_size++] = (char)byte;
+        cli_input_write(&byte, 1);
+    }
 }
 
 void cli_input_write(uint8_t const * data, uint32_t size) {
