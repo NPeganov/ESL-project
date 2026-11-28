@@ -98,8 +98,10 @@ static void tx_state_reset(void) {
     m_tx_busy = false;
 }
 
-static void usb_event_handler(app_usbd_class_inst_t const *,
+static void usb_event_handler(app_usbd_class_inst_t const * p_inst,
                               app_usbd_cdc_acm_user_event_t event) {
+    ASSERT(p_inst != NULL);
+
     switch (event) {
         case APP_USBD_CDC_ACM_USER_EVT_PORT_OPEN:
             // A bus reset clears DTR without sending PORT_CLOSE.
