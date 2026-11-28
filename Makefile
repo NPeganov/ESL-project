@@ -34,20 +34,20 @@ SRC_FILES += \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_nvmc.c \
   $(PROJ_DIR)/main.c \
   $(PROJ_DIR)/hardware/usb_port/usb_port.c \
-  $(PROJ_DIR)/cli_input/cli_input.c \
+  $(PROJ_DIR)/tools/cli_input/cli_input.c \
   $(PROJ_DIR)/hsv_picker_cli/hsv_picker_cli.c \
-  $(PROJ_DIR)/nvm_log/nvm_log.c \
+  $(PROJ_DIR)/tools/flash_storage_log/flash_storage_log.c \
   $(PROJ_DIR)/hsv_picker/hsv_picker.c \
   $(PROJ_DIR)/hardware/pwm/pwm.c \
-  $(PROJ_DIR)/leds/leds_pwm.c \
+  $(PROJ_DIR)/tools/leds/leds_pwm.c \
   $(PROJ_DIR)/hsv_picker/leds_control/leds_control.c \
   $(PROJ_DIR)/hsv_picker/leds_control/leds_control_hsv.c \
   $(PROJ_DIR)/hsv_picker/leds_control/leds_control_yellow.c \
-  $(PROJ_DIR)/leds/internal/color.c \
-  $(PROJ_DIR)/timer_service/timer_service.c \
+  $(PROJ_DIR)/tools/leds/internal/color.c \
+  $(PROJ_DIR)/tools/timer_service/timer_service.c \
   $(PROJ_DIR)/btn/btn.c \
   $(PROJ_DIR)/btn/btn_hw.c \
-  $(PROJ_DIR)/log/log.c \
+  $(PROJ_DIR)/tools/usb_logger/usb_logger.c \
   $(SDK_ROOT)/components/libraries/usbd/app_usbd.c \
   $(SDK_ROOT)/components/libraries/usbd/app_usbd_core.c \
   $(SDK_ROOT)/components/libraries/usbd/app_usbd_string_desc.c \

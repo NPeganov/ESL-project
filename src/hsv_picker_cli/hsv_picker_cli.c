@@ -1,6 +1,6 @@
 #include <stdbool.h>
 
-#include "cli_input/cli_input.h"
+#include "tools/cli_input/cli_input.h"
 #include "hardware/usb_port/usb_port.h"
 
 #include "hsv_picker_cli.h"
