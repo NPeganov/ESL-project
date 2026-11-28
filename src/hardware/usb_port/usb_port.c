@@ -60,6 +60,7 @@ static void tx_start(void) {
     memcpy(m_tx_buffer, &m_tx_queue[m_tx_queue_tail], chunk_size);
 
     ret_code_t ret = app_usbd_cdc_acm_write(&usb_cdc_acm, m_tx_buffer, chunk_size);
+    // The host may have reset DTR before the next PORT_OPEN event is processed.
     if (ret == NRF_ERROR_INVALID_STATE)
         return;
 
