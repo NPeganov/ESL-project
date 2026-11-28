@@ -5,7 +5,8 @@
 
 #include "cli.h"
 
-static void cli_receive(char const *) {
+static void cli_receive(char const * line) {
+    (void)line;
 }
 
 bool cli_init(void) {
