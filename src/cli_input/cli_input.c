@@ -23,6 +23,8 @@ void cli_input_receive(uint8_t byte) {
         if (byte == '\n' && m_ignore_lf)
             return;
 
+        cli_input_write((uint8_t const *)"\r\n", 2);
+
         m_line[m_line_size] = '\0';
         m_line_handler(m_line);
         m_line_size = 0;
